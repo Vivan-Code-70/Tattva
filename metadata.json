@@ -1,0 +1,8 @@
+{
+  "name": "Remix Tattvasayam Future Academy Portal",
+  "description": "High-efficiency academic portal, 3D campus hologram, multi-role workspaces, and real-time error telemetry \u0026 diagnostics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
