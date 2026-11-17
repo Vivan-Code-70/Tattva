@@ -303,8 +303,8 @@ export const TransportPaymentDashboard: React.FC<TransportPaymentDashboardProps>
             </span>
           </div>
 
-          <div className="h-[280px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-[280px] w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <BarChart
                 data={roleComplianceData}
                 margin={{ top: 10, right: 16, left: 4, bottom: 4 }}
@@ -374,8 +374,8 @@ export const TransportPaymentDashboard: React.FC<TransportPaymentDashboardProps>
             </span>
           </div>
 
-          <div className="h-[280px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-[280px] w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <ComposedChart
                 data={monthlyTrendData}
                 margin={{ top: 10, right: 12, left: 4, bottom: 4 }}

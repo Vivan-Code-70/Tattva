@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
-import { BusRouteInfo, BusStop } from '../../types';
-import { Crosshair, Layers, MapPin, ZoomIn, ZoomOut, CheckCircle2 } from 'lucide-react';
+import { BusRouteInfo } from '../../types';
+import { Crosshair, Layers, MapPin, ZoomIn, ZoomOut, ShieldCheck, Lock } from 'lucide-react';
+import { JAKKUR_DEPOT_COORDS, JAKKUR_DEPOT_RADIUS_METERS } from '../../services/roadRoutingService';
 
 interface BusMapLeafletProps {
   busRoute: BusRouteInfo;
@@ -17,6 +18,8 @@ interface BusMapLeafletProps {
   onToggleFollowBus: () => void;
   onJumpBusToStop?: (stopId: number) => void;
   routeCoordinates: [number, number][];
+  isLocationMasked?: boolean;
+  maskedReason?: 'off_duty' | 'geofence' | 'paused';
 }
 
 export const BusMapLeaflet: React.FC<BusMapLeafletProps> = ({
@@ -31,14 +34,16 @@ export const BusMapLeaflet: React.FC<BusMapLeafletProps> = ({
   onChangeMapTileMode,
   followBus,
   onToggleFollowBus,
-  onJumpBusToStop,
   routeCoordinates,
+  isLocationMasked = false,
+  maskedReason = 'off_duty',
 }) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const busMarkerRef = useRef<L.Marker | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const routePolylineRef = useRef<L.Polyline | null>(null);
+  const glowPolylineRef = useRef<L.Polyline | null>(null);
   const stopMarkersGroupRef = useRef<L.LayerGroup | null>(null);
   const geofenceCirclesGroupRef = useRef<L.LayerGroup | null>(null);
 
@@ -79,6 +84,16 @@ export const BusMapLeaflet: React.FC<BusMapLeafletProps> = ({
     stopMarkersGroupRef.current = L.layerGroup().addTo(map);
     geofenceCirclesGroupRef.current = L.layerGroup().addTo(map);
 
+    // Background glow line (inserted first so main route renders crisply on top)
+    const glowPolyline = L.polyline(routeCoordinates, {
+      color: '#fb923c',
+      weight: 12,
+      opacity: 0.3,
+      lineCap: 'round',
+      lineJoin: 'round',
+    }).addTo(map);
+    glowPolylineRef.current = glowPolyline;
+
     // Route Polyline
     const polyline = L.polyline(routeCoordinates, {
       color: '#ea580c',
@@ -88,13 +103,6 @@ export const BusMapLeaflet: React.FC<BusMapLeafletProps> = ({
       lineJoin: 'round',
     }).addTo(map);
     routePolylineRef.current = polyline;
-
-    // Background glow line
-    L.polyline(routeCoordinates, {
-      color: '#fb923c',
-      weight: 12,
-      opacity: 0.3,
-    }).addTo(map);
 
     // Initial bus marker
     const busIcon = L.divIcon({
@@ -147,15 +155,26 @@ export const BusMapLeaflet: React.FC<BusMapLeafletProps> = ({
     tileLayerRef.current.setUrl(selectedUrl);
   }, [mapTileMode, isDark]);
 
-  // Update Route Polyline if coordinates change
+  // Update Route Polyline & Glow Layer if coordinates change
   useEffect(() => {
-    if (!routePolylineRef.current) return;
-    routePolylineRef.current.setLatLngs(routeCoordinates);
+    if (glowPolylineRef.current) {
+      glowPolylineRef.current.setLatLngs(routeCoordinates);
+    }
+    if (routePolylineRef.current) {
+      routePolylineRef.current.setLatLngs(routeCoordinates);
+    }
   }, [routeCoordinates]);
 
-  // Update Bus Marker Position, Icon, and Heading
+  // Update Bus Marker Position, Icon, Heading, and Privacy Masking
   useEffect(() => {
     if (!busMarkerRef.current || !mapInstanceRef.current) return;
+
+    if (isLocationMasked) {
+      busMarkerRef.current.setOpacity(0);
+      return;
+    }
+
+    busMarkerRef.current.setOpacity(1);
     busMarkerRef.current.setLatLng([currentLat, currentLng]);
 
     const busIcon = L.divIcon({
@@ -190,7 +209,7 @@ export const BusMapLeaflet: React.FC<BusMapLeafletProps> = ({
         duration: 0.6,
       });
     }
-  }, [currentLat, currentLng, headingDeg, busRoute.currentSpeedKmH, followBus]);
+  }, [currentLat, currentLng, headingDeg, busRoute.currentSpeedKmH, followBus, isLocationMasked]);
 
   // Update Stop Markers & Geofences
   useEffect(() => {
@@ -199,15 +218,27 @@ export const BusMapLeaflet: React.FC<BusMapLeafletProps> = ({
     stopMarkersGroupRef.current.clearLayers();
     geofenceCirclesGroupRef.current.clearLayers();
 
+    // Jakkur Campus Depot 500m authorized geofence perimeter
+    const depotGeofence = L.circle(JAKKUR_DEPOT_COORDS, {
+      radius: JAKKUR_DEPOT_RADIUS_METERS,
+      color: '#0f766e',
+      weight: 1.5,
+      dashArray: '6 4',
+      fillColor: '#14b8a6',
+      fillOpacity: 0.08,
+    });
+    geofenceCirclesGroupRef.current?.addLayer(depotGeofence);
+
     busRoute.stops.forEach((stop, index) => {
       const lat = stop.lat || 13.0675;
       const lng = stop.lng || 77.5912;
       const isSelected = selectedStopId === (stop.id || index + 1);
       const isDestination = index === busRoute.stops.length - 1;
-      const isOrigin = index === 0;
 
-      // Calculate distance from bus to stop in meters
-      const distM = L.latLng(currentLat, currentLng).distanceTo(L.latLng(lat, lng));
+      // Calculate distance from bus to stop in meters (only when not privacy masked)
+      const distM = isLocationMasked
+        ? Infinity
+        : L.latLng(currentLat, currentLng).distanceTo(L.latLng(lat, lng));
       const isInsideGeofence = distM <= 400;
 
       // Geofence Circle
@@ -296,7 +327,7 @@ export const BusMapLeaflet: React.FC<BusMapLeafletProps> = ({
       stopMarker.bindPopup(popupContent);
       stopMarkersGroupRef.current?.addLayer(stopMarker);
     });
-  }, [busRoute.stops, selectedStopId, currentLat, currentLng]);
+  }, [busRoute.stops, selectedStopId, currentLat, currentLng, isLocationMasked]);
 
   // Center on entire route
   const handleFitRouteBounds = () => {
@@ -314,6 +345,31 @@ export const BusMapLeaflet: React.FC<BusMapLeafletProps> = ({
     <div className="relative w-full h-[400px] sm:h-[460px] md:h-[500px] rounded-2xl overflow-hidden shadow-inner border border-stone-200 dark:border-stone-800">
       {/* Map DOM Node */}
       <div ref={mapContainerRef} className="w-full h-full z-0" />
+
+      {/* Privacy Protected Overlay when Off Duty or Outside Authorized Corridor */}
+      {isLocationMasked && (
+        <div className="absolute inset-0 z-[410] bg-slate-900/55 backdrop-blur-[2px] flex items-center justify-center p-4 pointer-events-none">
+          <div className="max-w-md w-full rounded-2xl bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-700 shadow-xl p-5 text-center space-y-2">
+            <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 flex items-center justify-center mx-auto">
+              {maskedReason === 'geofence' ? (
+                <ShieldCheck className="w-5 h-5" />
+              ) : (
+                <Lock className="w-5 h-5" />
+              )}
+            </div>
+            <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
+              {maskedReason === 'geofence'
+                ? 'Geofence Privacy Active: Vehicle Outside Route 14 Corridor'
+                : 'Privacy Protected: Location sharing is paused while off duty.'}
+            </p>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              {maskedReason === 'geofence'
+                ? 'Live GPS broadcast automatically pauses whenever the vehicle leaves the Jakkur Campus Depot or Route 14 corridor.'
+                : 'Personal time GPS pings and live vehicle coordinates are masked. Official stops and scheduled timetable remain visible.'}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Map Control Tools (Top Right) */}
       <div className="absolute top-3 right-3 z-[400] flex flex-col gap-1.5">

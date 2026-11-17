@@ -29,6 +29,8 @@ import {
   X,
   UserCheck,
   Sparkles,
+  Lock,
+  EyeOff,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -55,6 +57,17 @@ import { TransportOptInPanel } from './portal/TransportOptInPanel';
 import { TransportApprovalQueue } from './portal/TransportApprovalQueue';
 import { soundEffects } from '../utils/audioChime';
 import { MlEtaPredictor } from '../services/mlEtaPredictor';
+import { AuthService, ApiAccessError } from '../services/authService';
+import { AccessDeniedView } from './AccessDeniedView';
+import {
+  PRIMARY_ROAD_COORDINATES,
+  BYPASS_ROAD_COORDINATES,
+  JAKKUR_DEPOT_COORDS,
+  interpolateAlongRoad,
+  computeStopRoadProgresses,
+  fetchOsrmRoadRoute,
+  evaluateRoute14Geofence,
+} from '../services/roadRoutingService';
 
 interface LiveTransitProps {
   busRoute?: BusRouteInfo;
@@ -62,6 +75,7 @@ interface LiveTransitProps {
   currentUser?: UserProfile | null;
   transportRequests?: TransportOptInRequest[];
   onNavigateToParentPortal?: () => void;
+  onNavigateHome?: () => void;
   onUpdateBusRoute?: (updated: BusRouteInfo) => void;
   onSendNotification?: (title: string, message: string, type: 'info' | 'warning' | 'alert') => void;
   onRequestTransport?: (payload: {
@@ -81,38 +95,7 @@ interface LiveTransitProps {
   onPayTransportFee?: (requestId: string, method: FeeTransaction['paymentMethod']) => void;
 }
 
-// Real-world North Bengaluru GPS Coordinates along Route 14 Corridor
-const PRIMARY_ROUTE_COORDINATES: [number, number][] = [
-  [13.1007, 77.5963], // Stop 1: Yelahanka 4th Phase (NES Circle)
-  [13.0975, 77.5950], // Major Sandeep Unnikrishnan Rd
-  [13.0920, 77.5920], // Rail Wheel Factory approach
-  [13.0865, 77.5895], // GKVK Perimeter Double Rd
-  [13.0815, 77.5882], // Stop 2: Judicial Layout Gate
-  [13.0760, 77.5890], // Kodigehalli Main Rd cross
-  [13.0710, 77.5905], // Sahakar Nagar 60ft Rd entry
-  [13.0670, 77.5915], // 14th Main approach
-  [13.0623, 77.5925], // Stop 3: Sahakar Nagar Main Cross
-  [13.0600, 77.5965], // Dasarahalli / Bellary Rd connector
-  [13.0585, 77.6010], // Bellary Rd Underpass (NH 44)
-  [13.0562, 77.6045], // Stop 4: Amruthahalli Signal Junction
-  [13.0590, 77.6090], // Amruthahalli Main Rd
-  [13.0625, 77.6135], // Jakkur Aerodrome perimeter
-  [13.0660, 77.6160], // Jakkur Plantation Rd turn
-  [13.0694, 77.6186], // Stop 5: Tattvasayam Future Academy (Gate 2)
-];
-
-const BYPASS_DETOUR_COORDINATES: [number, number][] = [
-  [13.1007, 77.5963], // Stop 1: Yelahanka 4th Phase
-  [13.0920, 77.5920],
-  [13.0815, 77.5882], // Stop 2: Judicial Layout Gate
-  [13.0710, 77.5905],
-  [13.0623, 77.5925], // Stop 3: Sahakar Nagar Main Cross
-  [13.0645, 77.6015], // Jakkur Aerodrome Bypass (avoids NH44 flyover bottleneck)
-  [13.0662, 77.6080],
-  [13.0562, 77.6045], // Stop 4: Amruthahalli Signal Junction
-  [13.0625, 77.6135],
-  [13.0694, 77.6186], // Stop 5: Campus Gate 2
-];
+// Real-world OpenStreetMap road-snapped corridors provided by roadRoutingService.ts
 
 // SVG Schematic Waypoints (for SVG HUD mode)
 interface SchematicWaypoint {
@@ -133,7 +116,7 @@ const SCHEMATIC_WAYPOINTS: SchematicWaypoint[] = [
   { id: 2, name: 'Judicial Layout Gate', shortName: 'Judicial Layout', landmark: 'GKVK Campus Perimeter Cross', x: 275, y: 155, lat: 13.0815, lng: 77.5882, timeScheduled: '07:35 AM', zone: 'Zone North-B' },
   { id: 3, name: 'Sahakar Nagar Main Cross', shortName: 'Sahakar Nagar', landmark: '14th Main Commercial Junction', x: 450, y: 220, lat: 13.0623, lng: 77.5925, timeScheduled: '07:50 AM', zone: 'Zone Central-East' },
   { id: 4, name: 'Amruthahalli Signal Junction', shortName: 'Amruthahalli Signal', landmark: 'Bellary Road Underpass Flyover', x: 620, y: 295, lat: 13.0562, lng: 77.6045, timeScheduled: '08:05 AM', zone: 'Zone Jakkur Corridor' },
-  { id: 5, name: 'Tattvasayam Future Academy (Gate 2)', shortName: 'Campus Gate 2 Turnstile', landmark: 'Jakkur Plantation Road • Gate 2 Drop Zone', x: 790, y: 395, lat: 13.0694, lng: 77.6186, timeScheduled: '08:18 AM', zone: 'Academy Campus Zone' },
+  { id: 5, name: 'Tattvaswayam Future Academy (Gate 2)', shortName: 'Campus Gate 2 Turnstile', landmark: '#2060, Sampigehalli, Jakkur • Gate 2 Drop Zone', x: 790, y: 395, lat: 13.0694, lng: 77.6186, timeScheduled: '08:18 AM', zone: 'Academy Campus Zone' },
 ];
 
 const ROUTE_SVG_PATH =
@@ -145,6 +128,7 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
   currentUser,
   transportRequests = [],
   onNavigateToParentPortal,
+  onNavigateHome,
   onUpdateBusRoute,
   onSendNotification,
   onRequestTransport,
@@ -152,6 +136,49 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
   onPayTransportFee,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'gps' | 'payments' | 'optin'>('gps');
+  const [busScopeInfo, setBusScopeInfo] = useState<{
+    scopeDescription: string;
+    allowedPassengerKeys: string[];
+  } | null>(null);
+  const [loadingAccess, setLoadingAccess] = useState<boolean>(true);
+  const [accessError, setAccessError] = useState<{ status: number; message: string } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    if (!currentUser) {
+      setLoadingAccess(false);
+      return;
+    }
+
+    setLoadingAccess(true);
+    setAccessError(null);
+    AuthService.fetchBusTracker()
+      .then((res) => {
+        if (!active) return;
+        const passengers = res.busTracker?.passengers || [];
+        setBusScopeInfo({
+          scopeDescription: res.busTracker?.scopeDescription || 'Route 14 Scope',
+          allowedPassengerKeys: passengers
+            .map((p: any) => (p.userKey || '').toLowerCase())
+            .filter(Boolean),
+        });
+      })
+      .catch((err: unknown) => {
+        if (!active) return;
+        if (err instanceof ApiAccessError) {
+          setAccessError({ status: err.status, message: err.message });
+        } else {
+          setAccessError({ status: 403, message: 'Access denied to Bus Tracker.' });
+        }
+      })
+      .finally(() => {
+        if (active) setLoadingAccess(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [currentUser?.id, currentUser?.role, currentUser?.roles?.join(',')]);
   // Current route state fallback
   const currentRoute = useMemo<BusRouteInfo>(() => {
     if (busRoute && busRoute.stops && busRoute.stops.length > 0) {
@@ -182,7 +209,7 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
         { id: 2, name: 'Judicial Layout Gate', shortName: 'Judicial Layout', landmark: 'GKVK Campus Perimeter', lat: 13.0815, lng: 77.5882, timeScheduled: '07:35 AM', eta: 'Departed', status: 'passed' },
         { id: 3, name: 'Sahakar Nagar Main Cross', shortName: 'Sahakar Nagar', landmark: '14th Main Commercial Junction', lat: 13.0623, lng: 77.5925, timeScheduled: '07:50 AM', eta: '07:49 AM', status: 'current' },
         { id: 4, name: 'Amruthahalli Signal Junction', shortName: 'Amruthahalli Signal', landmark: 'Bellary Road Flyover', lat: 13.0562, lng: 77.6045, timeScheduled: '08:05 AM', eta: '08:05 AM', status: 'upcoming' },
-        { id: 5, name: 'Tattvasayam Future Academy, Gate 2', shortName: 'Campus Gate 2 Turnstile', landmark: 'Jakkur Plantation Road', lat: 13.0694, lng: 77.6186, timeScheduled: '08:18 AM', eta: '08:18 AM', status: 'upcoming' },
+        { id: 5, name: 'Tattvaswayam Future Academy, Gate 2', shortName: 'Campus Gate 2 Turnstile', landmark: '#2060, Sampigehalli, Jakkur', lat: 13.0694, lng: 77.6186, timeScheduled: '08:18 AM', eta: '08:18 AM', status: 'upcoming' },
       ],
     };
   }, [busRoute]);
@@ -205,36 +232,92 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
   );
 
   const activeRouteVariant = currentRoute.activeRouteVariant || localRouteVariant;
-  const activeRouteCoordinates =
+  const fallbackRoadCoordinates =
     activeRouteVariant === 'traffic_bypass_detour'
-      ? BYPASS_DETOUR_COORDINATES
-      : PRIMARY_ROUTE_COORDINATES;
+      ? BYPASS_ROAD_COORDINATES
+      : PRIMARY_ROAD_COORDINATES;
+
+  const [snappedRoadCoordinates, setSnappedRoadCoordinates] = useState<[number, number][] | null>(null);
+
+  const stopWaypoints = useMemo<[number, number][]>(
+    () =>
+      currentRoute.stops
+        .filter((s) => typeof s.lat === 'number' && typeof s.lng === 'number')
+        .map((s) => [s.lat as number, s.lng as number]),
+    [currentRoute.stops]
+  );
+
+  const stopWaypointKey = useMemo(
+    () => stopWaypoints.map(([lat, lng]) => `${lat.toFixed(5)},${lng.toFixed(5)}`).join(';'),
+    [stopWaypoints]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (stopWaypoints.length < 2) {
+      setSnappedRoadCoordinates(null);
+      return;
+    }
+
+    const waypointsWithDetour: [number, number][] =
+      activeRouteVariant === 'traffic_bypass_detour' && stopWaypoints.length >= 3
+        ? [
+            ...stopWaypoints.slice(0, 2),
+            [13.0695, 77.5865], // Interior Sahakaranagar Railway Parallel Road bypass
+            ...stopWaypoints.slice(2),
+          ]
+        : stopWaypoints;
+
+    fetchOsrmRoadRoute(waypointsWithDetour, fallbackRoadCoordinates).then((coords) => {
+      if (!cancelled) {
+        setSnappedRoadCoordinates(coords);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeRouteVariant, stopWaypointKey]);
+
+  const activeRouteCoordinates = snappedRoadCoordinates || fallbackRoadCoordinates;
+
+  const stopRoadProgresses = useMemo(
+    () => computeStopRoadProgresses(activeRouteCoordinates, currentRoute.stops),
+    [activeRouteCoordinates, currentRoute.stops]
+  );
 
   const svgPathRef = useRef<SVGPathElement | null>(null);
   const lastReportedStopRef = useRef<number>(-1);
 
-  // Compute precise Lat/Lng and Heading by interpolating along the active GPS polyline
-  const liveCoordinates = useMemo(() => {
-    const coords = activeRouteCoordinates;
-    const totalSegments = coords.length - 1;
-    const scaledProgress = Math.max(0, Math.min(1, progress)) * totalSegments;
-    const segIndex = Math.min(Math.floor(scaledProgress), totalSegments - 1);
-    const segFraction = scaledProgress - segIndex;
+  // Compute precise Lat/Lng and Heading strictly along the road polyline by arc length
+  const liveCoordinates = useMemo(
+    () => interpolateAlongRoad(activeRouteCoordinates, progress),
+    [progress, activeRouteCoordinates]
+  );
 
-    const p1 = coords[segIndex];
-    const p2 = coords[segIndex + 1];
+  const isDriverOffDuty = currentRoute.dutyStatus === 'OFF_DUTY';
+  const isSimulatedOffRoute = Boolean(currentRoute.isSimulatedOffRoute);
+  const effectiveVehicleLat = isSimulatedOffRoute ? 13.0435 : liveCoordinates.lat;
+  const effectiveVehicleLng = isSimulatedOffRoute ? 77.641 : liveCoordinates.lng;
 
-    const lat = p1[0] + (p2[0] - p1[0]) * segFraction;
-    const lng = p1[1] + (p2[1] - p1[1]) * segFraction;
+  const geofenceEvaluation = useMemo(
+    () =>
+      evaluateRoute14Geofence(
+        effectiveVehicleLat,
+        effectiveVehicleLng,
+        activeRouteCoordinates,
+        JAKKUR_DEPOT_COORDS
+      ),
+    [effectiveVehicleLat, effectiveVehicleLng, activeRouteCoordinates]
+  );
 
-    // Heading in degrees
-    const dLat = p2[0] - p1[0];
-    const dLng = p2[1] - p1[1];
-    let heading = (Math.atan2(dLng, dLat) * 180) / Math.PI;
-    if (heading < 0) heading += 360;
-
-    return { lat, lng, heading: Math.round(heading) };
-  }, [progress, activeRouteCoordinates]);
+  const isOutsideAuthorizedGeofence = !isDriverOffDuty && !geofenceEvaluation.isAuthorizedZone;
+  const isLocationSharingActive =
+    !isDriverOffDuty &&
+    !isOutsideAuthorizedGeofence &&
+    currentRoute.isLocationSharingActive !== false;
+  const isLocationMasked = isDriverOffDuty || isOutsideAuthorizedGeofence || !isLocationSharingActive;
 
   // Compute SVG position for the HUD view
   const svgPosition = useMemo(() => {
@@ -258,23 +341,24 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
     }
   }, [progress]);
 
-  // Live Speed simulation (fluctuates realistically, slows near junctions)
+  // Live Speed simulation (fluctuates realistically, slows near junctions; strictly 0 when masked/off duty)
   const currentSpeed = useMemo(() => {
+    if (isLocationMasked) return 0;
     if (!isPlaying && progress !== 0) return 0;
     const baseSpeed = progress > 0.45 && progress < 0.65 ? 26 : 35;
     const noise = Math.sin(telemetryPulse * 0.4) * 4;
     return Math.max(12, Math.round(baseSpeed + noise));
-  }, [progress, isPlaying, telemetryPulse]);
+  }, [progress, isPlaying, telemetryPulse, isLocationMasked]);
 
   // Derived speed governor alert (> 40 km/h)
-  const speedWarning = currentSpeed > 40;
+  const speedWarning = !isLocationMasked && currentSpeed > 40;
 
-  // Machine Learning ETA Prediction based on real-time GPS telemetry & historical congestion patterns
+  // Machine Learning ETA Prediction based on real-time GPS & historical congestion patterns
   const mlPrediction = useMemo(() => {
     return MlEtaPredictor.predict(
       currentRoute,
       Math.round(progress * 100),
-      currentSpeed,
+      currentSpeed || 30,
       currentRoute.delayMinutes || 0,
       undefined,
       undefined,
@@ -282,9 +366,9 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
     );
   }, [currentRoute, progress, currentSpeed, activeRouteVariant]);
 
-  // Progress animation interval
+  // Progress animation interval — strictly paused when Off Duty or outside authorized Route 14 geofence
   useEffect(() => {
-    if (!isPlaying) return;
+    if (!isPlaying || isDriverOffDuty || isOutsideAuthorizedGeofence) return;
 
     const interval = setInterval(() => {
       setProgress((prev) => {
@@ -299,19 +383,17 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
     }, 100);
 
     return () => clearInterval(interval);
-  }, [isPlaying, speedMultiplier]);
+  }, [isPlaying, speedMultiplier, isDriverOffDuty, isOutsideAuthorizedGeofence]);
 
-  // Calculate stops status based on current progress & ML predicted ETAs
+  // Calculate stops status based on actual road progress & ML predicted ETAs
   const updatedStops = useMemo<BusStop[]>(() => {
-    const thresholds = [0.0, 0.25, 0.50, 0.75, 1.0];
-
     return currentRoute.stops.map((stop, i) => {
-      const stopProgress = thresholds[i];
+      const stopProgress = stopRoadProgresses[i] ?? i / Math.max(1, currentRoute.stops.length - 1);
       let status: 'passed' | 'current' | 'upcoming' = 'upcoming';
 
-      if (progress >= stopProgress + 0.12) {
+      if (progress >= stopProgress + 0.08) {
         status = 'passed';
-      } else if (progress >= stopProgress - 0.12 && progress < stopProgress + 0.12) {
+      } else if (progress >= stopProgress - 0.08 && progress < stopProgress + 0.08) {
         status = 'current';
       } else {
         status = 'upcoming';
@@ -351,7 +433,7 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
         students: updatedStudents,
       };
     });
-  }, [currentRoute.stops, progress, mlPrediction]);
+  }, [currentRoute.stops, progress, mlPrediction, stopRoadProgresses]);
 
   // Active stop index
   const activeStopIndex = useMemo(() => {
@@ -364,8 +446,10 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
   const activeStop = updatedStops[activeStopIndex] || updatedStops[0];
   const nextUpcomingStop = updatedStops.find((s) => s.status === 'upcoming') || updatedStops[4];
 
-  // Sync to parent application only when the bus enters a NEW station milestone
+  // Sync to parent application only when On Duty, inside Geofence, and entering a NEW station milestone
   useEffect(() => {
+    if (isDriverOffDuty || isOutsideAuthorizedGeofence || !isLocationSharingActive) return;
+
     if (activeStop.status === 'current' && lastReportedStopRef.current !== activeStopIndex) {
       lastReportedStopRef.current = activeStopIndex;
       soundEffects.playSuccessChime();
@@ -395,6 +479,8 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
           nextStop: nextUpcomingStop.name,
           currentStopIndex: activeStopIndex,
           progressPercent: Math.round(progress * 100),
+          geofenceStatus: geofenceEvaluation.status,
+          geofenceDistanceMeters: geofenceEvaluation.corridorDistanceMeters,
           stops: updatedStops,
           studentsBoardedCount: Math.max(16, boardedCount),
           totalStudentsCount: Math.max(28, totalCount),
@@ -412,23 +498,29 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
             currentLat: liveCoordinates.lat,
             currentLng: liveCoordinates.lng,
             cabinTempC: 23.5,
+            isMasked: false,
           },
         });
       }
     }
-  }, [activeStopIndex, activeStop.status]);
+  }, [activeStopIndex, activeStop.status, isDriverOffDuty, isOutsideAuthorizedGeofence, isLocationSharingActive]);
 
   // Selected stop details
   const selectedStop = useMemo(() => {
     return updatedStops.find((s) => s.id === selectedStopId) || updatedStops[2];
   }, [updatedStops, selectedStopId]);
 
-  // Selected student geofence info (e.g. Vivan)
+  // Selected student geofence info (scoped to current parent/student when applicable)
   const studentGeofenceInfo = useMemo(() => {
-    // Vivan is at stop 4 (Amruthahalli Signal)
-    const targetStop = updatedStops[3]; // Stop 4
-    const stopLat = targetStop.lat || 13.0562;
-    const stopLng = targetStop.lng || 77.6045;
+    const targetStudentKey =
+      currentUser?.linkedStudentKey ||
+      currentUser?.childrenKeys?.[0] ||
+      currentUser?.child ||
+      'vivan';
+    const isKrishvika = targetStudentKey === 'krishvika';
+    const targetStop = isKrishvika ? updatedStops[2] : updatedStops[3];
+    const stopLat = targetStop?.lat || (isKrishvika ? 13.0623 : 13.0562);
+    const stopLng = targetStop?.lng || (isKrishvika ? 77.5925 : 77.6045);
 
     // Approximate distance in km using haversine formula
     const R = 6371; // km
@@ -448,23 +540,24 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
     const isApproaching = distMeters > 500 && distMeters <= 1800;
 
     let etaMins = Math.max(1, Math.round(distKm / 0.5));
-    if (progress > 0.78) {
+    const stopPassedThreshold = isKrishvika ? 0.58 : 0.78;
+    if (progress > stopPassedThreshold) {
       etaMins = 0; // Already passed
     }
 
     return {
-      studentName: 'Vivan (Grade 10-A)',
-      parentName: 'Mr. Rajesh & Mrs. Sunita',
-      parentPhone: '+91 98450 99881',
-      stopName: targetStop.name,
+      studentName: isKrishvika ? 'Krishvika (Grade 8-B)' : 'Vivan (Grade 10-A)',
+      parentName: isKrishvika ? 'Parent of Krishvika' : 'Parent of Vivan',
+      parentPhone: isKrishvika ? '+91 98450 91735' : '+91 98450 99881',
+      stopName: targetStop?.name || 'Sahakar Nagar Main Cross',
       distMeters,
       isInsideGeofence,
       isApproaching,
-      isPassed: progress > 0.78,
-      isBoarded: progress >= 0.72,
+      isPassed: progress > stopPassedThreshold,
+      isBoarded: progress >= stopPassedThreshold - 0.06,
       etaMins,
     };
-  }, [liveCoordinates, progress, updatedStops]);
+  }, [liveCoordinates, progress, updatedStops, currentUser]);
 
   // Actions
   const handleReportTrafficDelay = (delayMins: number) => {
@@ -543,19 +636,18 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
   };
 
   const handleAdvanceToNextStop = () => {
-    const nextIdx = Math.min(activeStopIndex + 1, 4);
-    const thresholds = [0.0, 0.25, 0.50, 0.75, 0.98];
-    setProgress(thresholds[nextIdx]);
+    const nextIdx = Math.min(activeStopIndex + 1, Math.max(0, currentRoute.stops.length - 1));
+    const targetProgress = stopRoadProgresses[nextIdx] ?? nextIdx / Math.max(1, currentRoute.stops.length - 1);
+    setProgress(targetProgress);
     setSelectedStopId(nextIdx + 1);
   };
 
-  const remainingKm = Math.max(0, (1 - progress) * 11.4).toFixed(1);
+  const totalRoadDistanceKm = activeRouteVariant === 'traffic_bypass_detour' ? 15.4 : 13.9;
+  const remainingKm = Math.max(0, (1 - progress) * totalRoadDistanceKm).toFixed(1);
   const remainingCampusMinutes =
     activeRouteVariant === 'traffic_bypass_detour'
       ? mlPrediction.detourRouteEtaMinutes
       : mlPrediction.primaryRouteEtaMinutes;
-
-  const isLocationSharingActive = currentRoute.isLocationSharingActive !== false;
 
   const handleSwitchRouteVariant = (variant: 'primary_corridor' | 'traffic_bypass_detour') => {
     setLocalRouteVariant(variant);
@@ -574,7 +666,77 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
     setTimeout(() => setTestNotificationToast(null), 4000);
   };
 
+  const handleSetDutyStatus = (nextDuty: 'ON_DUTY' | 'OFF_DUTY') => {
+    if (nextDuty === 'OFF_DUTY') {
+      soundEffects.playAlertChime();
+      setTestNotificationToast('Privacy Protected: Location sharing is paused while off duty.');
+      setTimeout(() => setTestNotificationToast(null), 5000);
+      if (onUpdateBusRoute) {
+        onUpdateBusRoute({
+          ...currentRoute,
+          dutyStatus: 'OFF_DUTY',
+          isLocationSharingActive: false,
+          currentSpeedKmH: 0,
+          isEngineRunning: false,
+          locationSharingStartedAt: undefined,
+          telemetry: {
+            speedKmH: 0,
+            headingDeg: 0,
+            fuelPercent: currentRoute.telemetry?.fuelPercent ?? 84,
+            engineStatus: 'OFF',
+            gpsSignal: 'MASKED_OFF_DUTY',
+            satelliteCount: 0,
+            doorStatus: 'CLOSED',
+            acStatus: 'OFF',
+            speedLimitKmH: 40,
+            lastPingTime: 'Paused (Off Duty)',
+            currentLat: 0,
+            currentLng: 0,
+            isMasked: true,
+          },
+        });
+      }
+      return;
+    }
+
+    const canBroadcast = geofenceEvaluation.isAuthorizedZone;
+    soundEffects.playSuccessChime();
+    setTestNotificationToast(
+      canBroadcast
+        ? 'On Duty: Route 14 Active inside authorized corridor. Live tracking enabled.'
+        : 'On Duty active, but vehicle is outside Jakkur Depot / Route 14 corridor — live broadcast stays masked.'
+    );
+    setTimeout(() => setTestNotificationToast(null), 5000);
+    if (onUpdateBusRoute) {
+      onUpdateBusRoute({
+        ...currentRoute,
+        dutyStatus: 'ON_DUTY',
+        isLocationSharingActive: canBroadcast,
+        currentSpeedKmH: canBroadcast ? 34 : 0,
+        isEngineRunning: true,
+        geofenceStatus: geofenceEvaluation.status,
+        geofenceDistanceMeters: geofenceEvaluation.corridorDistanceMeters,
+        locationSharingStartedAt: canBroadcast
+          ? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : undefined,
+      });
+    }
+  };
+
   const handleToggleLocationSharing = () => {
+    if (isDriverOffDuty) {
+      soundEffects.playAlertChime();
+      setTestNotificationToast('Privacy Protected: Switch driver status to On Duty before starting live sharing.');
+      setTimeout(() => setTestNotificationToast(null), 4000);
+      return;
+    }
+    if (!geofenceEvaluation.isAuthorizedZone) {
+      soundEffects.playAlertChime();
+      setTestNotificationToast('Geofence Protection: Live broadcast only runs inside Jakkur Campus Depot or Route 14 corridor.');
+      setTimeout(() => setTestNotificationToast(null), 4000);
+      return;
+    }
+
     const nextSharingState = !isLocationSharingActive;
     if (nextSharingState) {
       soundEffects.playSuccessChime();
@@ -612,6 +774,54 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
 
   const approvedTransportCount = transportRequests.filter((r) => r.status === 'APPROVED').length;
   const pendingApprovalCount = transportRequests.filter((r) => r.status === 'PENDING').length;
+
+  const userRoles = currentUser?.roles || (currentUser ? [currentUser.role] : []);
+  const isOperationalStaff = userRoles.some(
+    (r) => r === 'admin' || r === 'principal' || r === 'support' || r === 'driver' || r === 'security'
+  );
+
+  if (!currentUser) {
+    return (
+      <AccessDeniedView
+        title="Sign In Required for Bus Tracker"
+        message="Live Bus Tracker is only available to signed-in parents, students, and authorized transport staff."
+        statusCode={401}
+        onNavigateHome={onNavigateHome || (() => {})}
+        onNavigateLogin={onNavigateToParentPortal}
+        showLoginAction
+      />
+    );
+  }
+
+  if (loadingAccess) {
+    return (
+      <div className="p-8 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 text-center space-y-2">
+        <div className="w-6 h-6 border-2 border-[#B45309] border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-xs font-medium text-stone-500 dark:text-stone-400">
+          Verifying Route 14 access permissions…
+        </p>
+      </div>
+    );
+  }
+
+  if (accessError) {
+    return (
+      <AccessDeniedView
+        title="Bus Tracker Access Denied"
+        message={accessError.message}
+        statusCode={accessError.status}
+        onNavigateHome={onNavigateHome || (() => {})}
+        onNavigateLogin={onNavigateToParentPortal}
+      />
+    );
+  }
+
+  const scopedStopStudents = (selectedStop.students || []).filter((st) => {
+    if (isOperationalStaff) return true;
+    const allowedKeys = busScopeInfo?.allowedPassengerKeys || [];
+    if (allowedKeys.length === 0) return false;
+    return Boolean(st.userKey && allowedKeys.includes(st.userKey.toLowerCase()));
+  });
 
   return (
     <div className="space-y-6">
@@ -677,9 +887,16 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
           </button>
         </div>
 
-        <span className="text-[11px] font-mono text-stone-500 px-2 hidden md:inline">
-          Route 14 · Corridor: {activeRouteVariant === 'traffic_bypass_detour' ? 'Jakkur Bypass Detour' : 'NH44 Primary'}
-        </span>
+        <div className="flex items-center gap-2 px-2">
+          {busScopeInfo?.scopeDescription && (
+            <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700">
+              {busScopeInfo.scopeDescription}
+            </span>
+          )}
+          <span className="text-[11px] font-mono text-stone-500 hidden md:inline">
+            Route 14 · {activeRouteVariant === 'traffic_bypass_detour' ? 'Jakkur Bypass Detour' : 'NH44 Primary'}
+          </span>
+        </div>
       </div>
 
       {activeSubTab === 'payments' && (
@@ -764,10 +981,14 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
         </div>
       )}
 
-      {/* Driver Cabin Location Sharing Console Bar */}
+      {/* Driver Cabin Location Sharing & Shift Privacy Console Bar */}
       <div
-        className={`p-4 sm:p-5 rounded-3xl border shadow-sm transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
-          isLocationSharingActive
+        className={`p-4 sm:p-5 rounded-3xl border shadow-sm transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-4 ${
+          isDriverOffDuty
+            ? 'bg-slate-900 border-emerald-500/40 text-white'
+            : isOutsideAuthorizedGeofence
+            ? 'bg-amber-500/10 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800'
+            : isLocationSharingActive
             ? 'bg-emerald-500/10 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800'
             : 'bg-amber-500/10 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800'
         }`}
@@ -775,10 +996,16 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
         <div className="flex items-start sm:items-center gap-3.5">
           <div
             className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-xs ${
-              isLocationSharingActive ? 'bg-emerald-600 text-white' : 'bg-amber-600 text-white'
+              isDriverOffDuty
+                ? 'bg-emerald-600/20 border border-emerald-500/40 text-emerald-300'
+                : isLocationSharingActive
+                ? 'bg-emerald-600 text-white'
+                : 'bg-amber-600 text-white'
             }`}
           >
-            {isLocationSharingActive ? (
+            {isDriverOffDuty ? (
+              <EyeOff className="w-5 h-5" />
+            ) : isLocationSharingActive ? (
               <Radio className="w-5 h-5 animate-pulse" />
             ) : (
               <ShieldAlert className="w-5 h-5" />
@@ -787,11 +1014,13 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
           <div className="space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-mono text-[11px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white dark:bg-stone-850 shadow-2xs text-stone-800 dark:text-stone-200 border border-stone-200 dark:border-stone-700">
-                Driver Cabin GPS Terminal
+                Driver Shift & Geofence Status
               </span>
               <span
                 className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black uppercase tracking-wider flex items-center gap-1.5 ${
-                  isLocationSharingActive
+                  isDriverOffDuty
+                    ? 'bg-slate-700 text-emerald-300 border border-emerald-500/30'
+                    : isLocationSharingActive
                     ? 'bg-emerald-600 text-white shadow-2xs'
                     : 'bg-amber-600 text-white shadow-2xs'
                 }`}
@@ -801,7 +1030,13 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
                     isLocationSharingActive ? 'bg-white animate-ping' : 'bg-white/80'
                   }`}
                 />
-                {isLocationSharingActive ? 'Broadcasting Live to Parents' : 'Location Hidden from Parents'}
+                {isDriverOffDuty
+                  ? 'Off Duty • Privacy Protected'
+                  : isOutsideAuthorizedGeofence
+                  ? 'Outside Corridor Geofence'
+                  : isLocationSharingActive
+                  ? 'On Duty: Route 14 Active'
+                  : 'Location Paused'}
               </span>
               {currentRoute.locationSharingStartedAt && isLocationSharingActive && (
                 <span className="text-[10px] text-stone-400 font-mono">
@@ -809,35 +1044,57 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
                 </span>
               )}
             </div>
-            <p className="text-xs text-stone-700 dark:text-stone-300 font-medium">
-              {isLocationSharingActive
-                ? `Driver Mr. Manjunath Gowda is currently broadcasting real-time GPS telemetry. Registered parents on Route 14 can view live vehicle movements, speed, and turnstile check-ins.`
-                : `Driver has not initiated trip broadcast yet. Parents visiting their portal are shown "Waiting for Driver to Share Location" with the scheduled timetable.`}
+            <p className={`text-xs font-medium ${isDriverOffDuty ? 'text-slate-200' : 'text-stone-700 dark:text-stone-300'}`}>
+              {isDriverOffDuty
+                ? 'Privacy Protected: Location sharing is paused while off duty. All live GPS pings and coordinates are masked during personal time.'
+                : isOutsideAuthorizedGeofence
+                ? `Geofence Privacy Active: Vehicle is ${geofenceEvaluation.corridorDistanceMeters.toLocaleString()}m outside the Route 14 corridor and Jakkur Depot. Live parent broadcast is paused.`
+                : isLocationSharingActive
+                ? `Driver Mr. Manjunath Gowda is On Duty inside ${geofenceEvaluation.zoneLabel}. Parents on Route 14 can follow live arrival ETAs.`
+                : `Live broadcast is temporarily paused. Parents see the scheduled Route 14 timetable until resumed.`}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0 self-start md:self-auto">
-          <button
-            onClick={handleToggleLocationSharing}
-            className={`px-4 py-2.5 rounded-xl font-extrabold text-xs shadow-md transition flex items-center gap-2 cursor-pointer ${
-              isLocationSharingActive
-                ? 'bg-white dark:bg-stone-850 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900 hover:bg-rose-50 dark:hover:bg-rose-950/50'
-                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-            }`}
-          >
-            {isLocationSharingActive ? (
-              <>
-                <Pause className="w-4 h-4 text-rose-600" />
-                <span>Stop Sharing Location (Go Private)</span>
-              </>
-            ) : (
-              <>
-                <Radio className="w-4 h-4 text-emerald-200 animate-pulse" />
-                <span>Start Trip & Share Live Location</span>
-              </>
-            )}
-          </button>
+        <div className="flex flex-wrap items-center gap-2 shrink-0 self-start lg:self-auto">
+          {currentUser?.role === 'driver' && (
+            <button
+              type="button"
+              onClick={() => handleSetDutyStatus(isDriverOffDuty ? 'ON_DUTY' : 'OFF_DUTY')}
+              className={`px-3.5 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer ${
+                isDriverOffDuty
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                  : 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-600'
+              }`}
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>{isDriverOffDuty ? 'Go On Duty (Route 14)' : 'Switch to Off Duty'}</span>
+            </button>
+          )}
+
+          {!isDriverOffDuty && (
+            <button
+              type="button"
+              onClick={handleToggleLocationSharing}
+              className={`px-4 py-2.5 rounded-xl font-extrabold text-xs shadow-md transition flex items-center gap-2 cursor-pointer ${
+                isLocationSharingActive
+                  ? 'bg-white dark:bg-stone-850 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900 hover:bg-rose-50 dark:hover:bg-rose-950/50'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+              }`}
+            >
+              {isLocationSharingActive ? (
+                <>
+                  <Pause className="w-4 h-4 text-rose-600" />
+                  <span>Pause Location Share</span>
+                </>
+              ) : (
+                <>
+                  <Radio className="w-4 h-4 text-emerald-200 animate-pulse" />
+                  <span>Start Trip & Share Live Location</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -864,7 +1121,7 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
             </h3>
 
             <p className="text-xs text-stone-600 dark:text-stone-400">
-              Live satellite positioning: Yelahanka 4th Phase ⇄ Tattvasayam Gate 2 • Speed governor, geofencing & student turnstile manifest.
+              Live satellite positioning: Yelahanka 4th Phase ⇄ Tattvaswayam Gate 2 • Speed governor, geofencing & student turnstile manifest.
             </p>
           </div>
 
@@ -939,24 +1196,6 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
 
         {/* ================= MAP OR HUD VIEWPORT ================= */}
         <div className="p-4 sm:p-6 bg-stone-50 dark:bg-stone-950 space-y-3">
-          {!isLocationSharingActive && (
-            <div className="p-3.5 rounded-2xl bg-amber-500/10 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-              <div className="flex items-center gap-2.5">
-                <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>
-                  <strong>Driver Location Sharing is OFF:</strong> Parents visiting the Parent Portal cannot see this live GPS movement, speed, or real-time ETAs. They are shown the "Waiting for Driver to Share Location" screen.
-                </span>
-              </div>
-              <button
-                onClick={handleToggleLocationSharing}
-                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shrink-0 transition flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
-              >
-                <Radio className="w-3.5 h-3.5 animate-pulse" />
-                <span>Enable Broadcast</span>
-              </button>
-            </div>
-          )}
-
           {viewMode === 'map' ? (
             /* REAL LEAFLET INTERACTIVE MAP */
             <div className="space-y-2">
@@ -970,9 +1209,11 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
                 isDark={isDark}
                 mapTileMode={mapTileMode}
                 onChangeMapTileMode={(m) => setMapTileMode(m)}
-                followBus={followBus}
+                followBus={!isLocationMasked && followBus}
                 onToggleFollowBus={() => setFollowBus(!followBus)}
                 routeCoordinates={activeRouteCoordinates}
+                isLocationMasked={isLocationMasked}
+                maskedReason={isDriverOffDuty ? 'off_duty' : isOutsideAuthorizedGeofence ? 'geofence' : 'paused'}
               />
             </div>
           ) : (
@@ -1040,21 +1281,30 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
                   );
                 })}
 
-                {/* Animated Bus Glyph */}
-                <g transform={`translate(${svgPosition.x}, ${svgPosition.y}) rotate(${svgPosition.angle})`} filter="url(#glow)">
-                  <circle cx="0" cy="0" r="16" fill="#ea580c" opacity="0.25" className="animate-ping" />
-                  <circle cx="0" cy="0" r="11" fill="#ea580c" opacity="0.4" />
-                  <g transform="translate(-14, -8)">
-                    <rect x="0" y="0" width="28" height="16" rx="4" fill="#f59e0b" stroke="#78350f" strokeWidth="1.5" />
-                    <rect x="20" y="2" width="5" height="12" rx="1.5" fill="#38bdf8" />
-                    <rect x="5" y="2" width="4" height="4" rx="1" fill="#0f172a" />
-                    <rect x="11" y="2" width="4" height="4" rx="1" fill="#0f172a" />
-                    <rect x="5" y="10" width="4" height="4" rx="1" fill="#0f172a" />
-                    <rect x="11" y="10" width="4" height="4" rx="1" fill="#0f172a" />
-                    <text x="11" y="9.5" fontSize="5" fontWeight="black" fill="#78350f" textAnchor="middle">14</text>
+                {/* Animated Bus Glyph (hidden when privacy masked) */}
+                {!isLocationMasked && (
+                  <g transform={`translate(${svgPosition.x}, ${svgPosition.y}) rotate(${svgPosition.angle})`} filter="url(#glow)">
+                    <circle cx="0" cy="0" r="16" fill="#ea580c" opacity="0.25" className="animate-ping" />
+                    <circle cx="0" cy="0" r="11" fill="#ea580c" opacity="0.4" />
+                    <g transform="translate(-14, -8)">
+                      <rect x="0" y="0" width="28" height="16" rx="4" fill="#f59e0b" stroke="#78350f" strokeWidth="1.5" />
+                      <rect x="20" y="2" width="5" height="12" rx="1.5" fill="#38bdf8" />
+                      <rect x="5" y="2" width="4" height="4" rx="1" fill="#0f172a" />
+                      <rect x="11" y="2" width="4" height="4" rx="1" fill="#0f172a" />
+                      <rect x="5" y="10" width="4" height="4" rx="1" fill="#0f172a" />
+                      <rect x="11" y="10" width="4" height="4" rx="1" fill="#0f172a" />
+                      <text x="11" y="9.5" fontSize="5" fontWeight="black" fill="#78350f" textAnchor="middle">14</text>
+                    </g>
                   </g>
-                </g>
+                )}
               </svg>
+              {isLocationMasked && (
+                <div className="absolute inset-0 bg-slate-900/55 backdrop-blur-[2px] flex items-center justify-center p-4">
+                  <p className="px-4 py-2.5 rounded-xl bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-slate-100 text-xs font-bold shadow-lg">
+                    Privacy Protected: Location sharing is paused while off duty.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1105,14 +1355,16 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
               <div className="space-y-2 pt-2 border-t border-stone-200/80 dark:border-stone-700">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider">
-                    Assigned Scholars ({selectedStop.students?.length || 0})
+                    {isOperationalStaff ? 'Assigned Scholars' : 'Your Authorized Commuters'} ({scopedStopStudents.length})
                   </span>
-                  <span className="text-[10px] font-medium text-stone-500">Tap to toggle status</span>
+                  <span className="text-[10px] font-medium text-stone-500">
+                    {isOperationalStaff ? 'Tap to toggle status' : 'Privacy scoped'}
+                  </span>
                 </div>
 
-                {selectedStop.students && selectedStop.students.length > 0 ? (
+                {scopedStopStudents.length > 0 ? (
                   <div className="space-y-2">
-                    {selectedStop.students.map((student) => {
+                    {scopedStopStudents.map((student) => {
                       const isBoarded = student.status === 'boarded';
                       const isAbsent = student.status === 'absent';
                       return (
@@ -1132,40 +1384,48 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
                             </span>
                           </div>
 
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => handleToggleStudentStatus(selectedStop.id || 1, student.id, isBoarded ? 'waiting' : 'boarded')}
-                              className={`px-2 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 ${
-                                isBoarded
-                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                                  : 'bg-stone-100 dark:bg-stone-800 text-stone-600 hover:bg-emerald-50'
-                              }`}
-                              title="Mark Boarded"
-                            >
-                              <Check className="w-3 h-3" />
-                              <span>{isBoarded ? 'Boarded' : 'Board'}</span>
-                            </button>
+                          {isOperationalStaff ? (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleToggleStudentStatus(selectedStop.id || 1, student.id, isBoarded ? 'waiting' : 'boarded')}
+                                className={`px-2 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 ${
+                                  isBoarded
+                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                    : 'bg-stone-100 dark:bg-stone-800 text-stone-600 hover:bg-emerald-50'
+                                }`}
+                                title="Mark Boarded"
+                              >
+                                <Check className="w-3 h-3" />
+                                <span>{isBoarded ? 'Boarded' : 'Board'}</span>
+                              </button>
 
-                            <button
-                              onClick={() => handleToggleStudentStatus(selectedStop.id || 1, student.id, isAbsent ? 'waiting' : 'absent')}
-                              className={`px-2 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 ${
-                                isAbsent
-                                  ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
-                                  : 'bg-stone-100 dark:bg-stone-800 text-stone-600 hover:bg-rose-50'
-                              }`}
-                              title="Mark Absent"
-                            >
-                              <X className="w-3 h-3" />
-                              <span>{isAbsent ? 'Absent' : 'Skip'}</span>
-                            </button>
-                          </div>
+                              <button
+                                onClick={() => handleToggleStudentStatus(selectedStop.id || 1, student.id, isAbsent ? 'waiting' : 'absent')}
+                                className={`px-2 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 ${
+                                  isAbsent
+                                    ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                                    : 'bg-stone-100 dark:bg-stone-800 text-stone-600 hover:bg-rose-50'
+                                }`}
+                                title="Mark Absent"
+                              >
+                                <X className="w-3 h-3" />
+                                <span>{isAbsent ? 'Absent' : 'Skip'}</span>
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                              {isBoarded ? 'Boarded' : isAbsent ? 'Absent' : 'Waiting'}
+                            </span>
+                          )}
                         </div>
                       );
                     })}
                   </div>
                 ) : (
                   <div className="py-4 text-center text-stone-400 text-xs">
-                    Campus Gate 2 Turnstile • All 28 scholars disembark here
+                    {isOperationalStaff
+                      ? 'Campus Gate 2 Turnstile • All 28 scholars disembark here'
+                      : 'No assigned commuter for your family at this stop. Other families are hidden for privacy.'}
                   </div>
                 )}
               </div>
@@ -1181,7 +1441,7 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
                   </h4>
                 </div>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-200/80 dark:bg-amber-950 text-amber-900 dark:text-amber-300 font-bold">
-                  Student: Vivan (Gr 10-A)
+                  Student: {studentGeofenceInfo.studentName}
                 </span>
               </div>
 
@@ -1331,8 +1591,8 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
                     Traffic Index: {Math.round(mlPrediction.currentTrafficIndex * 100)}% ({mlPrediction.activeCorridorCongestion})
                   </span>
                 </div>
-                <div className="h-[130px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="h-[130px] w-full min-w-0">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <BarChart
                       data={mlPrediction.stopPredictions.map((p) => ({
                         stop: `#${p.stopId} ${p.stopName.split(' ')[0]}`,
@@ -1409,12 +1669,12 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
               </div>
             </div>
 
-            {/* Live Movement & Telemetry Scrubber */}
+            {/* Live Route Simulation Controls */}
             <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-stone-850 border border-stone-200 dark:border-stone-800 space-y-4">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-stone-800 dark:text-stone-200 flex items-center gap-1.5">
                   <Activity className="w-4 h-4 text-orange-600" />
-                  <span>Live GPS Movement Simulation Engine</span>
+                  <span>Live Route Playback & Simulation</span>
                 </span>
                 <span className="font-mono text-[11px] text-stone-500 font-bold">
                   Route Progress: {Math.round(progress * 100)}% ({remainingKm} km left)
@@ -1428,8 +1688,9 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
                 max="1"
                 step="0.005"
                 value={progress}
+                disabled={isDriverOffDuty}
                 onChange={(e) => setProgress(parseFloat(e.target.value))}
-                className="w-full h-2.5 bg-stone-200 dark:bg-stone-700 rounded-lg appearance-none cursor-pointer accent-orange-600"
+                className="w-full h-2.5 bg-stone-200 dark:bg-stone-700 rounded-lg appearance-none cursor-pointer accent-orange-600 disabled:opacity-50"
               />
 
               {/* Transport Controls */}
@@ -1437,19 +1698,21 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setIsPlaying(!isPlaying)}
-                    className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 transition shadow-xs ${
-                      isPlaying
+                    disabled={isDriverOffDuty}
+                    className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 transition shadow-xs disabled:opacity-50 ${
+                      isPlaying && !isDriverOffDuty
                         ? 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200 hover:bg-amber-200'
                         : 'bg-orange-600 text-white hover:bg-orange-700'
                     }`}
                   >
-                    {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                    <span>{isPlaying ? 'Pause' : 'Resume Trip'}</span>
+                    {isPlaying && !isDriverOffDuty ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                    <span>{isDriverOffDuty ? 'Paused (Off Duty)' : isPlaying ? 'Pause' : 'Resume Trip'}</span>
                   </button>
 
                   <button
                     onClick={handleAdvanceToNextStop}
-                    className="px-3 py-2 rounded-xl border border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-300 font-bold flex items-center gap-1 transition"
+                    disabled={isDriverOffDuty}
+                    className="px-3 py-2 rounded-xl border border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-300 font-bold flex items-center gap-1 transition disabled:opacity-50"
                     title="Jump to Next Stop"
                   >
                     <span>Next Station</span>
@@ -1458,7 +1721,8 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
 
                   <button
                     onClick={() => setProgress(0.0)}
-                    className="p-2 rounded-xl border border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300 transition"
+                    disabled={isDriverOffDuty}
+                    className="p-2 rounded-xl border border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300 transition disabled:opacity-50"
                     title="Restart trip at Yelahanka"
                   >
                     <RotateCcw className="w-4 h-4" />
@@ -1523,12 +1787,16 @@ export const LiveTransit: React.FC<LiveTransitProps> = ({
               </div>
             </div>
 
-            {/* Telemetry Diagnostics Grid */}
+            {/* Vehicle Safety & Status Diagnostics Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
               <div className="p-3 rounded-2xl bg-white dark:bg-stone-850 border border-stone-200 dark:border-stone-800 space-y-1">
-                <span className="text-[10px] font-mono text-stone-400 uppercase block">GPS Sats</span>
-                <span className="font-extrabold text-stone-900 dark:text-stone-100 text-sm">14 Locked (5G)</span>
-                <span className="text-[10px] text-emerald-600 block">±1.2m Accuracy</span>
+                <span className="text-[10px] font-mono text-stone-400 uppercase block">GPS Status</span>
+                <span className="font-extrabold text-stone-900 dark:text-stone-100 text-sm">
+                  {isDriverOffDuty ? 'Masked (Off Duty)' : isOutsideAuthorizedGeofence ? 'Geofence Paused' : '14 Locked (5G)'}
+                </span>
+                <span className={`text-[10px] block ${isLocationMasked ? 'text-amber-600' : 'text-emerald-600'}`}>
+                  {isLocationMasked ? 'Zero background pings' : '±1.2m Accuracy'}
+                </span>
               </div>
               <div className="p-3 rounded-2xl bg-white dark:bg-stone-850 border border-stone-200 dark:border-stone-800 space-y-1">
                 <span className="text-[10px] font-mono text-stone-400 uppercase block">Fuel / Battery</span>

@@ -112,7 +112,7 @@ export class GmailService {
       <body style="font-family: Arial, sans-serif; background-color: #fffdfb; margin: 0; padding: 24px; color: #1c140e;">
         <div style="max-width: 650px; margin: 0 auto; background: #ffffff; border: 1px solid #fed7aa; border-radius: 16px; padding: 24px; box-shadow: 0 4px 16px rgba(234, 88, 12, 0.08);">
           <div style="border-bottom: 2px solid #ea580c; padding-bottom: 12px; margin-bottom: 16px;">
-            <h2 style="color: #ea580c; margin: 0; font-size: 20px;">Tattvasayam Future Academy</h2>
+            <h2 style="color: #ea580c; margin: 0; font-size: 20px;">Tattvaswayam Future Academy</h2>
             <p style="font-size: 12px; color: #78716c; margin: 4px 0 0 0;">Campus Attendance & Turnout Audit • ${weekRange}</p>
           </div>
 
@@ -143,8 +143,8 @@ export class GmailService {
             Turnout data is cryptographically timestamped and synced with academy gate registries.
           </div>
 
-          <p style="font-size: 12px; color: #78716c; margin-top: 24px; border-top: 1px solid #fed7aa; pt: 12px;">
-            Tattvasayam Future Academy • Jakkur Plantation Road, Bengaluru, Karnataka 560064
+          <p style="font-size: 12px; color: #78716c; margin-top: 24px; border-top: 1px solid #fed7aa; padding-top: 12px;">
+            Tattvaswayam Open Learning Resource Centre &amp; Future Academy • #2060, Sampigehalli, Jakkur, Bengaluru 560064 • +91-76250-03355
           </p>
         </div>
       </body>
@@ -255,7 +255,7 @@ export class GmailService {
           <div style="background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); padding: 24px 28px; color: #ffffff;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <div>
-                <h1 style="margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.02em; color: #ffffff;">Tattvasayam Future Academy</h1>
+                <h1 style="margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.02em; color: #ffffff;">Tattvaswayam Future Academy</h1>
                 <p style="margin: 4px 0 0 0; font-size: 12px; color: #ffedd5; opacity: 0.95;">Official Directorate Communications • Central Bengaluru Campus</p>
               </div>
             </div>
@@ -284,8 +284,8 @@ export class GmailService {
             </div>
 
             <div style="margin-top: 28px; padding-top: 18px; border-top: 1px solid #e7e5e4; font-size: 11px; color: #78716c; line-height: 1.5;">
-              <p style="margin: 0 0 4px 0; font-weight: 600; color: #44403c;">Tattvasayam Future Academy Portal • Academic Directorate</p>
-              <p style="margin: 0;">Jakkur Plantation Road, Bengaluru, Karnataka 560064 • Official Mail Dispatch</p>
+              <p style="margin: 0 0 4px 0; font-weight: 600; color: #44403c;">Tattvaswayam Open Learning &amp; Future Academy • Academic Directorate</p>
+              <p style="margin: 0;">#2060, Sampigehalli, Jakkur, Bengaluru, Karnataka 560064 • +91-76250-03355 • info@tattvaswayam.com</p>
             </div>
           </div>
         </div>

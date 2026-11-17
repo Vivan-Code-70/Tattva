@@ -232,7 +232,7 @@ export const StudentOverview: React.FC<StudentOverviewProps> = ({
             <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-400 font-mono">
               Student Overview Matrix
             </span>
-            <span className="text-xs text-stone-400">• Verified Biometric Telemetry</span>
+            <span className="text-xs text-stone-400">• Verified Gate Check-In Sync</span>
           </div>
           <h3 className="text-lg font-extrabold text-stone-900 dark:text-stone-100 font-display">
             30-Day Attendance & Academic Trajectory
@@ -372,8 +372,8 @@ export const StudentOverview: React.FC<StudentOverviewProps> = ({
         </div>
 
         {/* Chart Viewport */}
-        <div className="w-full h-56 pt-2">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="w-full h-56 pt-2 min-w-0">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <LineChart data={chartData} margin={{ top: 8, right: 12, left: -22, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} opacity={0.6} />
               <XAxis

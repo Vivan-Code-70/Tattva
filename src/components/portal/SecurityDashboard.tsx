@@ -177,7 +177,7 @@ export const SecurityDashboard: React.FC<SecurityDashboardProps> = ({
           grade = parsed.grade || 'Grade 10-A';
           badgeId = parsed.badgeId || `TAT-2026-${(parsed.id || 'STU').toUpperCase()}`;
         } else if (rawData.includes(':')) {
-          // Format: TATTVASAYAM:ID:vivan:Vivan:Grade 10-A
+          // Format: TATTVASWAYAM:ID:vivan:Vivan:Grade 10-A
           const parts = rawData.split(':');
           if (parts.length >= 4) {
             name = parts[3] || parts[2];
@@ -382,7 +382,7 @@ export const SecurityDashboard: React.FC<SecurityDashboardProps> = ({
   // Quick simulation trigger for testing
   const handleSimulateScan = (name: string, grade: string) => {
     const mockPayload = JSON.stringify({
-      institution: 'TATTVASAYAM FUTURE ACADEMY',
+      institution: 'TATTVASWAYAM FUTURE ACADEMY',
       name,
       grade,
       role: 'student',
@@ -846,7 +846,7 @@ export const SecurityDashboard: React.FC<SecurityDashboardProps> = ({
             <div className="p-6 sm:p-7 rounded-3xl bg-white dark:bg-stone-900 border border-orange-200/90 dark:border-amber-950/90 shadow-sm space-y-4">
               <div className="border-b border-stone-100 dark:border-stone-800 pb-3">
                 <span className="text-xs uppercase font-bold text-orange-600 tracking-wider">
-                  Verification Telemetry
+                  Gate Verification Log
                 </span>
                 <h3 className="text-base font-extrabold text-stone-900 dark:text-stone-100 mt-0.5">
                   Latest Student Clearance
@@ -1187,7 +1187,7 @@ export const SecurityDashboard: React.FC<SecurityDashboardProps> = ({
               <ul className="list-disc list-inside space-y-1 text-[11px] text-stone-700 dark:text-stone-300">
                 <li>Automated bollards & turnstiles immediately dead-locked.</li>
                 <li>Displays full-screen inescapable red emergency warning overlay across all active student & teacher sessions.</li>
-                <li>Triggers station sirens and alerts Principal Dr. Shenoy's office.</li>
+                <li>Triggers station sirens and alerts Centre Head Ms. Amrita &amp; Founder Ms. Sandhya Gatti&apos;s office.</li>
               </ul>
             </div>
 

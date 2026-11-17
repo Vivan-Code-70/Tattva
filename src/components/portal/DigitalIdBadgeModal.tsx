@@ -47,7 +47,7 @@ export const DigitalIdBadgeModal: React.FC<DigitalIdBadgeModalProps> = ({
   const [tapSuccess, setTapSuccess] = useState(false);
 
   const payload = JSON.stringify({
-    institution: 'TATTVASAYAM FUTURE ACADEMY',
+    institution: 'TATTVASWAYAM FUTURE ACADEMY',
     campus: 'Jakkur Campus, Bengaluru',
     role: user.role,
     id: user.id,
@@ -146,13 +146,13 @@ export const DigitalIdBadgeModal: React.FC<DigitalIdBadgeModalProps> = ({
                   <div className="w-8 h-8 rounded-lg bg-white p-0.5 shadow-sm shrink-0 flex items-center justify-center">
                     <img
                       src="/assets/aistudio/Tattvaswayam_School_Logo_dd139741.png"
-                      alt="Tattvasayam Academy Logo"
+                      alt="Tattvaswayam Academy Logo"
                       className="w-full h-full object-contain"
                     />
                   </div>
                   <div>
                     <div className="font-mono text-[11px] font-black tracking-widest text-amber-200">
-                      TATTVASAYAM
+                      TATTVASWAYAM
                     </div>
                     <div className="text-[9px] uppercase tracking-wider text-orange-100">
                       Future Academy • Jakkur
@@ -194,7 +194,7 @@ export const DigitalIdBadgeModal: React.FC<DigitalIdBadgeModalProps> = ({
                   </div>
                   <div className="flex items-center gap-1.5 pt-1 text-[10px] text-orange-200">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
-                    <span>Cryptographically Signed</span>
+                    <span>Institutionally Verified</span>
                   </div>
                 </div>
               </div>

@@ -30,7 +30,7 @@ export class GoogleSheetsService {
 
     // Prepare grid rows
     const headerRow1 = [
-      'TATTVASAYAM FUTURE ACADEMY',
+      'TATTVASWAYAM FUTURE ACADEMY',
       'WEEKLY CAMPUS ATTENDANCE AUDIT & PERCENTAGE MATRIX',
       '',
       '',
@@ -94,7 +94,7 @@ export class GoogleSheetsService {
       },
       body: JSON.stringify({
         properties: {
-          title: title || 'Tattvasayam Academy - Weekly Attendance Trend',
+          title: title || 'Tattvaswayam Academy - Weekly Attendance Trend',
         },
       }),
     });

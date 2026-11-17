@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Bus,
   Navigation,
@@ -26,6 +26,8 @@ import {
   RotateCcw,
   Sparkles,
   Zap,
+  Lock,
+  EyeOff,
 } from 'lucide-react';
 import {
   UserProfile,
@@ -39,6 +41,15 @@ import {
 import { soundEffects } from '../../utils/audioChime';
 import { MlEtaPredictor } from '../../services/mlEtaPredictor';
 import { BusMapLeaflet } from '../transit/BusMapLeaflet';
+import {
+  PRIMARY_ROAD_COORDINATES,
+  BYPASS_ROAD_COORDINATES,
+  JAKKUR_DEPOT_COORDS,
+  interpolateAlongRoad,
+  computeStopRoadProgresses,
+  fetchOsrmRoadRoute,
+  evaluateRoute14Geofence,
+} from '../../services/roadRoutingService';
 
 interface DriverDashboardProps {
   user: UserProfile;
@@ -50,35 +61,7 @@ interface DriverDashboardProps {
   isDark?: boolean;
 }
 
-// GPS coordinates for the two route corridors
-const PRIMARY_ROUTE_COORDS: [number, number][] = [
-  [13.1007, 77.5963], // Stop 1: Yelahanka 4th Phase (NES Circle)
-  [13.0975, 77.5950],
-  [13.0920, 77.5920],
-  [13.0865, 77.5895],
-  [13.0815, 77.5882], // Stop 2: Judicial Layout Gate
-  [13.0760, 77.5890],
-  [13.0710, 77.5905],
-  [13.0670, 77.5915],
-  [13.0623, 77.5925], // Stop 3: Sahakar Nagar Main Cross
-  [13.0600, 77.5965],
-  [13.0585, 77.6010], // Bellary Rd Underpass (NH 44 Bottleneck)
-  [13.0562, 77.6045], // Stop 4: Amruthahalli Signal Junction
-  [13.0590, 77.6090],
-  [13.0625, 77.6135],
-  [13.0660, 77.6160],
-  [13.0694, 77.6186], // Stop 5: Campus Gate 2 Turnstile
-];
-
-const BYPASS_DETOUR_COORDS: [number, number][] = [
-  [13.1007, 77.5963], // Stop 1: Yelahanka 4th Phase
-  [13.0815, 77.5882], // Stop 2: Judicial Layout
-  [13.0623, 77.5925], // Stop 3: Sahakar Nagar
-  [13.0645, 77.6015], // Jakkur Aerodrome perimeter bypass (avoids NH44 flyover)
-  [13.0662, 77.6080],
-  [13.0562, 77.6045], // Stop 4: Amruthahalli Signal
-  [13.0694, 77.6186], // Stop 5: Gate 2
-];
+// Road-snapped OSM corridors provided by roadRoutingService.ts
 
 const COMMUTE_DAYS = [
   { id: 'Today', label: 'Today (Live)', date: '2026-10-30' },
@@ -121,10 +104,13 @@ export const DriverDashboard: React.FC<DriverDashboardProps> = ({
   );
 
   const stops = busRoute.stops || [];
-  const currentSpeed = busRoute.currentSpeedKmH || 32;
+  const dutyStatus: 'ON_DUTY' | 'OFF_DUTY' = busRoute.dutyStatus === 'OFF_DUTY' ? 'OFF_DUTY' : 'ON_DUTY';
+  const isOffDuty = dutyStatus === 'OFF_DUTY';
+  const isSimulatedOffRoute = Boolean(busRoute.isSimulatedOffRoute);
+  const currentSpeed = isOffDuty ? 0 : busRoute.currentSpeedKmH || 32;
   const progressPercent = busRoute.progressPercent ?? 48;
   const delayMinutes = busRoute.delayMinutes || 0;
-  const isLocationSharingActive = busRoute.isLocationSharingActive !== false;
+  const isLocationSharingActive = !isOffDuty && !isSimulatedOffRoute && busRoute.isLocationSharingActive !== false;
 
   // Run real-time ML ETA Prediction based on current GPS telemetry & active corridor variant
   const mlPrediction = useMemo(() => {
@@ -275,10 +261,84 @@ export const DriverDashboard: React.FC<DriverDashboardProps> = ({
   const currentStation = stops[currentStopIndex] || stops[0];
   const nextStation = stops[Math.min(stops.length - 1, currentStopIndex + 1)] || stops[stops.length - 1];
 
-  // Coords for current route variant
-  const activePolyline = activeRouteVariant === 'traffic_bypass_detour' ? BYPASS_DETOUR_COORDS : PRIMARY_ROUTE_COORDS;
-  const currentGpsLat = busRoute.telemetry?.currentLat || 13.0623;
-  const currentGpsLng = busRoute.telemetry?.currentLng || 77.5925;
+  // Road-snapped coordinates for current route variant
+  const fallbackRoadPolyline =
+    activeRouteVariant === 'traffic_bypass_detour'
+      ? BYPASS_ROAD_COORDINATES
+      : PRIMARY_ROAD_COORDINATES;
+
+  const [snappedRoadPolyline, setSnappedRoadPolyline] = useState<[number, number][] | null>(null);
+
+  const stopWaypoints = useMemo<[number, number][]>(
+    () =>
+      stops
+        .filter((s) => typeof s.lat === 'number' && typeof s.lng === 'number')
+        .map((s) => [s.lat as number, s.lng as number]),
+    [stops]
+  );
+
+  const stopWaypointKey = useMemo(
+    () => stopWaypoints.map(([lat, lng]) => `${lat.toFixed(5)},${lng.toFixed(5)}`).join(';'),
+    [stopWaypoints]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (stopWaypoints.length < 2) {
+      setSnappedRoadPolyline(null);
+      return;
+    }
+
+    const waypointsWithDetour: [number, number][] =
+      activeRouteVariant === 'traffic_bypass_detour' && stopWaypoints.length >= 3
+        ? [
+            ...stopWaypoints.slice(0, 2),
+            [13.0695, 77.5865],
+            ...stopWaypoints.slice(2),
+          ]
+        : stopWaypoints;
+
+    fetchOsrmRoadRoute(waypointsWithDetour, fallbackRoadPolyline).then((coords) => {
+      if (!cancelled) setSnappedRoadPolyline(coords);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeRouteVariant, stopWaypointKey]);
+
+  const activePolyline = snappedRoadPolyline || fallbackRoadPolyline;
+
+  const stopRoadProgresses = useMemo(
+    () => computeStopRoadProgresses(activePolyline, stops),
+    [activePolyline, stops]
+  );
+
+  const roadPosition = useMemo(
+    () => interpolateAlongRoad(activePolyline, progressPercent / 100),
+    [activePolyline, progressPercent]
+  );
+
+  // Off-route verification coordinate (~2.8 km outside Route 14 corridor near Nagawara ORR)
+  const effectiveVehicleLat = isSimulatedOffRoute ? 13.0435 : roadPosition.lat;
+  const effectiveVehicleLng = isSimulatedOffRoute ? 77.641 : roadPosition.lng;
+  const currentGpsHeading = roadPosition.heading;
+
+  // Automated Jakkur Campus Depot & Route 14 Corridor Geofence Evaluation
+  const geofenceEvaluation = useMemo(
+    () =>
+      evaluateRoute14Geofence(
+        effectiveVehicleLat,
+        effectiveVehicleLng,
+        activePolyline,
+        JAKKUR_DEPOT_COORDS
+      ),
+    [effectiveVehicleLat, effectiveVehicleLng, activePolyline]
+  );
+
+  const isOutsideAuthorizedGeofence = !isOffDuty && !geofenceEvaluation.isAuthorizedZone;
+  const isTelemetryMasked = isOffDuty || isOutsideAuthorizedGeofence || !isLocationSharingActive;
 
   // Filtered passenger roster for the selected day
   const filteredPassengers = useMemo(() => {
@@ -307,11 +367,150 @@ export const DriverDashboard: React.FC<DriverDashboardProps> = ({
     setTimeout(() => setToastMessage(null), 4500);
   };
 
+  const handleSetDutyStatus = (nextDuty: 'ON_DUTY' | 'OFF_DUTY') => {
+    if (nextDuty === dutyStatus) return;
+
+    if (nextDuty === 'OFF_DUTY') {
+      soundEffects.playAlertChime();
+      showToast('Privacy Protected: Location sharing and background GPS pings paused for personal time.');
+      if (onSendNotification) {
+        onSendNotification(
+          'Driver Off Duty — Privacy Active',
+          `${busRoute.driverName} switched Route 14 to Off Duty / Personal Time. Live GPS sharing is paused.`,
+          'info'
+        );
+      }
+      onUpdateBusRoute({
+        ...busRoute,
+        dutyStatus: 'OFF_DUTY',
+        isLocationSharingActive: false,
+        currentSpeedKmH: 0,
+        isEngineRunning: false,
+        locationSharingStartedAt: undefined,
+        telemetry: {
+          speedKmH: 0,
+          headingDeg: busRoute.telemetry?.headingDeg ?? 0,
+          fuelPercent: busRoute.telemetry?.fuelPercent ?? 84,
+          engineStatus: 'OFF',
+          gpsSignal: 'MASKED_OFF_DUTY',
+          satelliteCount: 0,
+          doorStatus: 'CLOSED',
+          acStatus: 'OFF',
+          speedLimitKmH: busRoute.telemetry?.speedLimitKmH ?? 40,
+          lastPingTime: 'Paused (Off Duty)',
+          currentLat: 0,
+          currentLng: 0,
+          cabinTempC: busRoute.telemetry?.cabinTempC ?? 24,
+          isMasked: true,
+        },
+      });
+      return;
+    }
+
+    // Switching back ON_DUTY: automatically verify Jakkur Depot & Route 14 Geofence
+    const insideAuthorizedZone = geofenceEvaluation.isAuthorizedZone;
+    soundEffects.playSuccessChime();
+    if (!insideAuthorizedZone) {
+      showToast('On Duty active — Vehicle is outside Route 14 corridor geofence, so live broadcast stays paused.');
+    } else {
+      showToast(`On Duty: Route 14 Active (${geofenceEvaluation.zoneLabel}). Live tracking enabled.`);
+    }
+
+    onUpdateBusRoute({
+      ...busRoute,
+      dutyStatus: 'ON_DUTY',
+      isLocationSharingActive: insideAuthorizedZone,
+      currentSpeedKmH: insideAuthorizedZone ? 34 : 0,
+      isEngineRunning: true,
+      geofenceStatus: geofenceEvaluation.status,
+      geofenceDistanceMeters: geofenceEvaluation.corridorDistanceMeters,
+      locationSharingStartedAt: insideAuthorizedZone
+        ? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : undefined,
+      telemetry: {
+        speedKmH: insideAuthorizedZone ? 34 : 0,
+        headingDeg: roadPosition.heading,
+        fuelPercent: busRoute.telemetry?.fuelPercent ?? 84,
+        engineStatus: 'RUNNING',
+        gpsSignal: insideAuthorizedZone ? 'STRONG_5G' : 'PAUSED_GEOFENCE',
+        satelliteCount: 14,
+        doorStatus: 'CLOSED',
+        acStatus: 'ON',
+        speedLimitKmH: busRoute.telemetry?.speedLimitKmH ?? 40,
+        lastPingTime: insideAuthorizedZone ? 'Just now' : 'Paused (Outside Geofence)',
+        currentLat: insideAuthorizedZone ? roadPosition.lat : 0,
+        currentLng: insideAuthorizedZone ? roadPosition.lng : 0,
+        cabinTempC: busRoute.telemetry?.cabinTempC ?? 23.5,
+        isMasked: !insideAuthorizedZone,
+      },
+    });
+  };
+
+  const handleToggleOffRouteSimulation = () => {
+    const nextOffRoute = !isSimulatedOffRoute;
+    const simulatedLat = nextOffRoute ? 13.0435 : roadPosition.lat;
+    const simulatedLng = nextOffRoute ? 77.641 : roadPosition.lng;
+    const evalResult = evaluateRoute14Geofence(
+      simulatedLat,
+      simulatedLng,
+      activePolyline,
+      JAKKUR_DEPOT_COORDS
+    );
+
+    if (nextOffRoute) {
+      soundEffects.playAlertChime();
+      showToast(
+        `Geofence Triggered: Vehicle ${evalResult.corridorDistanceMeters}m outside Route 14 corridor — live parent broadcast paused & masked.`
+      );
+    } else {
+      soundEffects.playSuccessChime();
+      showToast(
+        `Entered ${evalResult.zoneLabel} — Route 14 corridor geofence verified.`
+      );
+    }
+
+    const canBroadcast = dutyStatus === 'ON_DUTY' && evalResult.isAuthorizedZone;
+    onUpdateBusRoute({
+      ...busRoute,
+      isSimulatedOffRoute: nextOffRoute,
+      geofenceStatus: evalResult.status,
+      geofenceDistanceMeters: evalResult.corridorDistanceMeters,
+      isLocationSharingActive: canBroadcast,
+      telemetry: {
+        speedKmH: canBroadcast ? currentSpeed : 0,
+        headingDeg: roadPosition.heading,
+        fuelPercent: busRoute.telemetry?.fuelPercent ?? 84,
+        engineStatus: dutyStatus === 'OFF_DUTY' ? 'OFF' : 'RUNNING',
+        gpsSignal: dutyStatus === 'OFF_DUTY' ? 'MASKED_OFF_DUTY' : evalResult.isAuthorizedZone ? 'STRONG_5G' : 'PAUSED_GEOFENCE',
+        satelliteCount: dutyStatus === 'OFF_DUTY' ? 0 : 14,
+        doorStatus: 'CLOSED',
+        acStatus: dutyStatus === 'OFF_DUTY' ? 'OFF' : 'ON',
+        speedLimitKmH: busRoute.telemetry?.speedLimitKmH ?? 40,
+        lastPingTime: canBroadcast ? 'Just now' : 'Paused (Outside Geofence)',
+        currentLat: canBroadcast ? roadPosition.lat : 0,
+        currentLng: canBroadcast ? roadPosition.lng : 0,
+        cabinTempC: busRoute.telemetry?.cabinTempC ?? 23.5,
+        isMasked: !canBroadcast,
+      },
+    });
+  };
+
   const handleToggleLocationSharing = () => {
+    if (isOffDuty) {
+      soundEffects.playAlertChime();
+      showToast('Switch Shift Duty to "On Duty: Route 14 Active" before starting live location sharing.');
+      return;
+    }
+    if (!geofenceEvaluation.isAuthorizedZone) {
+      soundEffects.playAlertChime();
+      showToast('Geofence Protection: Live broadcast only starts inside Jakkur Campus Depot or Route 14 corridor.');
+      return;
+    }
+
     const nextState = !isLocationSharingActive;
     if (nextState) {
       soundEffects.playSuccessChime();
-      showToast('🟢 GPS Broadcast Live: Registered parents on Route 14 can now see your live bus tracking.');
+      showToast('GPS Broadcast Live: Registered parents on Route 14 can now see your live bus tracking.');
       if (onSendNotification) {
         onSendNotification(
           'Driver Broadcast Live',
@@ -321,7 +520,7 @@ export const DriverDashboard: React.FC<DriverDashboardProps> = ({
       }
     } else {
       soundEffects.playAlertChime();
-      showToast('🔴 Location Sharing Paused: Live telemetry is withheld from parents (showing scheduled timetable).');
+      showToast('Location Sharing Paused: Live updates are paused for parents (showing scheduled timetable).');
       if (onSendNotification) {
         onSendNotification(
           'Driver Broadcast Paused',
@@ -334,6 +533,8 @@ export const DriverDashboard: React.FC<DriverDashboardProps> = ({
     onUpdateBusRoute({
       ...busRoute,
       isLocationSharingActive: nextState,
+      geofenceStatus: geofenceEvaluation.status,
+      geofenceDistanceMeters: geofenceEvaluation.corridorDistanceMeters,
       locationSharingStartedAt: nextState ? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined,
     });
   };
@@ -420,9 +621,17 @@ export const DriverDashboard: React.FC<DriverDashboardProps> = ({
   };
 
   const handleAdvanceToNextStop = () => {
+    if (isOffDuty) {
+      soundEffects.playAlertChime();
+      showToast('Switch Shift Duty to "On Duty: Route 14 Active" before advancing stops.');
+      return;
+    }
+
     soundEffects.playSuccessChime();
     const nextIdx = Math.min(stops.length - 1, currentStopIndex + 1);
-    const stepProgress = Math.round((nextIdx / Math.max(1, stops.length - 1)) * 100);
+    const roadFraction = stopRoadProgresses[nextIdx] ?? nextIdx / Math.max(1, stops.length - 1);
+    const stepProgress = Math.round(roadFraction * 100);
+    const nextPos = interpolateAlongRoad(activePolyline, roadFraction);
 
     const updatedStops: BusStop[] = stops.map((st, i) => {
       if (i < nextIdx) return { ...st, status: 'passed' as const };
@@ -430,13 +639,31 @@ export const DriverDashboard: React.FC<DriverDashboardProps> = ({
       return { ...st, status: 'upcoming' as const };
     });
 
+    const canBroadcast = !isOutsideAuthorizedGeofence && isLocationSharingActive;
+
     onUpdateBusRoute({
       ...busRoute,
       currentStopIndex: nextIdx,
       progressPercent: stepProgress,
-      currentLocationName: `At ${stops[nextIdx].name}`,
+      currentLocationName: canBroadcast ? `At ${stops[nextIdx].name}` : 'Paused (Privacy Protected)',
       nextStop: stops[Math.min(stops.length - 1, nextIdx + 1)].name,
       stops: updatedStops,
+      telemetry: {
+        speedKmH: canBroadcast ? currentSpeed : 0,
+        headingDeg: nextPos.heading,
+        fuelPercent: busRoute.telemetry?.fuelPercent ?? 84,
+        engineStatus: busRoute.telemetry?.engineStatus ?? 'RUNNING',
+        gpsSignal: canBroadcast ? (busRoute.telemetry?.gpsSignal ?? 'STRONG_5G') : 'PAUSED_GEOFENCE',
+        satelliteCount: busRoute.telemetry?.satelliteCount ?? 14,
+        doorStatus: 'OPEN',
+        acStatus: busRoute.telemetry?.acStatus ?? 'ON',
+        speedLimitKmH: busRoute.telemetry?.speedLimitKmH ?? 40,
+        lastPingTime: canBroadcast ? 'Just now' : 'Paused (Outside Geofence)',
+        currentLat: canBroadcast ? nextPos.lat : 0,
+        currentLng: canBroadcast ? nextPos.lng : 0,
+        cabinTempC: busRoute.telemetry?.cabinTempC ?? 23.5,
+        isMasked: !canBroadcast,
+      },
     });
 
     showToast(`Navigating to Stop #${nextIdx + 1}: ${stops[nextIdx].name}`);
@@ -499,46 +726,149 @@ export const DriverDashboard: React.FC<DriverDashboardProps> = ({
         </div>
       )}
 
-      {/* ================= DRIVER CABIN HEADER & BROADCAST TERMINAL ================= */}
-      <div className="rounded-3xl bg-gradient-to-r from-stone-900 via-stone-850 to-stone-900 border border-stone-800 text-white shadow-xl p-5 sm:p-6 space-y-5">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-5">
+      {/* ================= DRIVER CABIN HEADER & SHIFT DUTY TERMINAL ================= */}
+      <div className="rounded-3xl bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 border border-slate-800 text-white shadow-xl p-5 sm:p-6 space-y-5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/10 pb-5">
           <div className="space-y-1.5">
             <div className="flex items-center gap-2.5 flex-wrap">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span
+                className={`w-2.5 h-2.5 rounded-full ${
+                  isOffDuty ? 'bg-slate-400' : isOutsideAuthorizedGeofence ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse'
+                }`}
+              />
               <span className="font-mono text-[11px] font-black uppercase tracking-wider text-amber-400">
                 Driver Pilot Terminal • Cabin Console
               </span>
-              <span className="text-xs px-2.5 py-0.5 rounded-md bg-white/10 text-stone-300 font-mono">
+              <span className="text-xs px-2.5 py-0.5 rounded-md bg-white/10 text-slate-300 font-mono">
                 {busRoute.vehicleNumber} (Route 14 Express)
               </span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-black font-display tracking-tight text-white flex items-center gap-2">
               <span>Welcome, {user.name}</span>
             </h2>
-            <p className="text-xs text-stone-400 max-w-2xl">
-              Live turn-by-turn navigation, real-time passenger pickup/drop tally, daily passenger attendance manifest, and dynamic ML traffic rerouting.
+            <p className="text-xs text-slate-300 max-w-2xl">
+              Live turn-by-turn navigation, real-time passenger pickup/drop tally, daily passenger attendance manifest, and privacy-first shift geofencing.
             </p>
           </div>
 
-          {/* Broadcast Toggle to Parents */}
-          <div className="flex items-center gap-3 shrink-0 self-start md:self-auto">
-            <button
-              onClick={handleToggleLocationSharing}
-              className={`px-4 py-2.5 rounded-2xl font-extrabold text-xs shadow-md transition flex items-center gap-2 cursor-pointer ${
-                isLocationSharingActive
-                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-900/40'
-                  : 'bg-amber-500 hover:bg-amber-600 text-stone-950 font-black'
-              }`}
+          {/* Shift Duty Toggle + Broadcast Action */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+            {/* Prominent Shift Duty Segmented Toggle Switch */}
+            <div
+              role="radiogroup"
+              aria-label="Driver Shift Duty Toggle"
+              className="p-1 rounded-2xl bg-slate-950/80 border border-slate-700 flex items-center gap-1"
             >
-              <Radio className={`w-4 h-4 ${isLocationSharingActive ? 'animate-pulse' : ''}`} />
-              <span>
-                {isLocationSharingActive
-                  ? 'Broadcasting Live to Parents'
-                  : 'Start Trip & Share Location'}
-              </span>
-            </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={isOffDuty}
+                onClick={() => handleSetDutyStatus('OFF_DUTY')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                  isOffDuty
+                    ? 'bg-slate-700 text-white shadow-sm border border-slate-500'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Lock className="w-3.5 h-3.5 text-amber-400" />
+                <span>Off Duty / Personal Time</span>
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={!isOffDuty}
+                onClick={() => handleSetDutyStatus('ON_DUTY')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                  !isOffDuty
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Radio className={`w-3.5 h-3.5 ${!isOffDuty ? 'animate-pulse' : ''}`} />
+                <span>On Duty: Route 14 Active</span>
+              </button>
+            </div>
+
+            {!isOffDuty && (
+              <button
+                type="button"
+                onClick={handleToggleLocationSharing}
+                className={`px-4 py-2.5 rounded-2xl font-extrabold text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap ${
+                  isLocationSharingActive
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-900/40'
+                    : 'bg-amber-500 hover:bg-amber-600 text-slate-950 font-black'
+                }`}
+              >
+                <Radio className={`w-4 h-4 ${isLocationSharingActive ? 'animate-pulse' : ''}`} />
+                <span>
+                  {isLocationSharingActive
+                    ? 'Live Tracking On'
+                    : isOutsideAuthorizedGeofence
+                    ? 'Outside Geofence'
+                    : 'Start Live Share'}
+                </span>
+              </button>
+            )}
           </div>
         </div>
+
+        {/* Clean Off-Duty Privacy Banner */}
+        {isOffDuty && (
+          <div
+            role="status"
+            className="p-4 sm:p-5 rounded-2xl bg-slate-800/90 border border-emerald-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+          >
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 flex items-center justify-center shrink-0">
+                <EyeOff className="w-5 h-5" />
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-sm font-bold text-white">
+                  Privacy Protected: Location sharing is paused while off duty.
+                </p>
+                <p className="text-xs text-slate-300">
+                  All live GPS coordinate transmission and background location pings are paused and masked during personal time. Switch to <strong>On Duty: Route 14 Active</strong> at Jakkur Campus depot to begin your school run.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleSetDutyStatus('ON_DUTY')}
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shrink-0 cursor-pointer"
+            >
+              Resume Route 14 Duty
+            </button>
+          </div>
+        )}
+
+        {/* Automated Geofence Privacy Banner when On Duty but Outside Corridor */}
+        {isOutsideAuthorizedGeofence && (
+          <div
+            role="status"
+            className="p-4 rounded-2xl bg-amber-950/60 border border-amber-500/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+          >
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-sm font-bold text-amber-200">
+                  Geofence Protection Active: Vehicle Outside Route 14 & Jakkur Depot
+                </p>
+                <p className="text-xs text-amber-100/80">
+                  Vehicle is {geofenceEvaluation.corridorDistanceMeters.toLocaleString()}m from the Route 14 corridor. Live parent broadcast is automatically masked until returning to an authorized school corridor or Jakkur Campus depot.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleToggleOffRouteSimulation}
+              className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition shrink-0 cursor-pointer"
+            >
+              Return to Route 14 Corridor
+            </button>
+          </div>
+        )}
 
         {/* ================= VITAL COUNTERS REQUIRED BY DRIVER ================= */}
         {/* 1. Students & Staff Picked Up, 2. Students & Total To Be Dropped, 3. Waiting, 4. Coming vs Absent */}
@@ -749,21 +1079,68 @@ export const DriverDashboard: React.FC<DriverDashboardProps> = ({
           </div>
         </div>
 
-        {/* Real GPS Map View for Driver */}
+        {/* Automated Jakkur Depot & Route 14 Geofence Monitor */}
+        <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-3">
+            <div
+              className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                isOffDuty
+                  ? 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                  : geofenceEvaluation.isAuthorizedZone
+                  ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
+                  : 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-slate-900 dark:text-slate-100">
+                  Automated Geofence: {isOffDuty ? 'Masked (Off Duty)' : geofenceEvaluation.zoneLabel}
+                </span>
+                <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">
+                  {isOffDuty
+                    ? 'GPS Ping: Paused'
+                    : `Corridor offset: ${geofenceEvaluation.corridorDistanceMeters}m · Depot: ${(geofenceEvaluation.depotDistanceMeters / 1000).toFixed(2)} km`}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Jakkur Campus depot (500m radius) and Route 14 corridor (650m buffer) enforce privacy-first automatic broadcast gating.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleToggleOffRouteSimulation}
+            disabled={isOffDuty}
+            className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+              isSimulatedOffRoute
+                ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700'
+                : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            {isSimulatedOffRoute ? 'Return to Route 14 Corridor' : 'Test Outside-Corridor Geofence'}
+          </button>
+        </div>
+
+        {/* Real GPS Map View for Driver (with Privacy Masking when Off Duty or Outside Geofence) */}
         <div className="space-y-2">
           <BusMapLeaflet
             busRoute={busRoute}
-            currentLat={currentGpsLat}
-            currentLng={currentGpsLng}
-            headingDeg={busRoute.telemetry?.headingDeg || 140}
+            currentLat={roadPosition.lat}
+            currentLng={roadPosition.lng}
+            headingDeg={currentGpsHeading}
             selectedStopId={selectedStopId}
             onSelectStop={(id) => setSelectedStopId(id)}
             isDark={isDark}
             mapTileMode={mapTileMode}
             onChangeMapTileMode={setMapTileMode}
-            followBus={followBus}
+            followBus={!isTelemetryMasked && followBus}
             onToggleFollowBus={() => setFollowBus((f) => !f)}
             routeCoordinates={activePolyline}
+            isLocationMasked={isTelemetryMasked}
+            maskedReason={isOffDuty ? 'off_duty' : isOutsideAuthorizedGeofence ? 'geofence' : 'paused'}
           />
         </div>
 

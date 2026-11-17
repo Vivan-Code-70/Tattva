@@ -155,7 +155,7 @@ export const OtpHubView: React.FC<OtpHubViewProps> = ({
             </h2>
 
             <p className="text-sm text-stone-600 dark:text-stone-400 max-w-lg mx-auto leading-relaxed">
-              This TOTP cryptographic site is strictly restricted. Only <strong>Ms. Sandhya</strong> (Director of Academics) and <strong>Ms. Amrita</strong> (Head of Faculty) are authorized to view and manage institutional two-factor codes.
+              This two-step verification site is strictly restricted. Only <strong>Ms. Sandhya</strong> (Director of Academics) and <strong>Ms. Amrita</strong> (Head of Faculty) are authorized to view and manage school sign-in codes.
             </p>
           </div>
 
@@ -229,7 +229,7 @@ export const OtpHubView: React.FC<OtpHubViewProps> = ({
               Institutional TOTP Dispatch Hub
             </h1>
             <p className="text-stone-300 text-xs sm:text-sm leading-relaxed">
-              Live cryptographic verification tokens for all academy profiles. Codes remain strictly synchronized with portal sign-in and rotate smoothly every <strong>30 seconds</strong>.
+              Live 6-digit verification tokens for all school profiles. Codes remain synchronized with portal sign-in and refresh smoothly every <strong>30 seconds</strong>.
             </p>
           </div>
 

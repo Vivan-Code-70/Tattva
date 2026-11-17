@@ -287,7 +287,7 @@ export const TransportOptInPanel: React.FC<TransportOptInPanelProps> = ({
             </span>
           </div>
           <p className="text-stone-600 dark:text-stone-300">
-            Requested Pickup: <strong>{existingRequest.stopName}</strong> ({existingRequest.tripType}). No transport fee is charged unless approved by Coordinator Ms. Bharthi or Administration.
+            Requested Pickup: <strong>{existingRequest.stopName}</strong> ({existingRequest.tripType}). No transport fee is charged unless approved by Chief Administrator Ms. Sangeetha or Administration.
           </p>
         </div>
       )}

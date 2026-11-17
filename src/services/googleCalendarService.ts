@@ -257,8 +257,8 @@ export async function createGoogleCalendarEvent(eventData: {
 
   const payload: any = {
     summary: eventData.summary,
-    description: eventData.description || 'Added from Tattvasayam Future Academy Portal',
-    location: eventData.location || 'Tattvasayam Future Academy, Jakkur, Bengaluru',
+    description: eventData.description || 'Added from Tattvaswayam Future Academy Portal',
+    location: eventData.location || 'Tattvaswayam Future Academy, Jakkur, Bengaluru',
   };
 
   if (eventData.isAllDay || !eventData.startTime) {

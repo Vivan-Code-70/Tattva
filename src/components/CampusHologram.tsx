@@ -78,280 +78,273 @@ export interface CampusHotspot {
 export const CAMPUS_HOTSPOTS: CampusHotspot[] = [
   {
     id: 'academic-core',
-    name: 'Academic Central Block (Classrooms & STEM)',
-    shortName: 'Classrooms Block',
+    name: 'Open Learning Studios (Inizio – Adroit & Labs)',
+    shortName: 'Learning Studios',
     badge: 'Main Academic Block',
     category: 'Classrooms & STEM',
     coords: [0, 18.2, 0],
     cameraAngle: -0.5,
     occupancy: {
-      current: 142,
-      max: 160,
-      percentage: 88.8,
-      status: 'High',
+      current: 96,
+      max: 120,
+      percentage: 80.0,
+      status: 'Optimal',
     },
     staffPresent: [
       {
-        name: 'Ms. Susmita',
-        role: 'Senior Faculty, Physics & Mathematics',
-        room: 'Room 302 (3rd Floor)',
+        name: 'Ms. Sushmitha',
+        role: 'Facilitator & Mentor, Mathematical Studies',
+        room: 'Studio 302 (Adroit & Mezzo)',
         status: 'In Session',
       },
       {
-        name: 'Dr. K. Ramesh',
-        role: 'Head of Chemistry & Materials Science',
-        room: 'STEM Lab 201',
+        name: 'Ms. Sandhya Padmanabhan',
+        role: 'Facilitator & Mentor, Language & Literature',
+        room: 'Studio 204 (Novitiate)',
+        status: 'In Session',
+      },
+      {
+        name: 'Ms. Shravani',
+        role: 'Facilitator, Early Childhood (Inizio)',
+        room: 'Inizio Sunlit Wing 105',
         status: 'Available',
       },
       {
-        name: 'Ms. Ananya Rao',
-        role: 'Humanities & English Fellow',
-        room: 'Room 204 (2nd Floor)',
-        status: 'In Session',
-      },
-      {
-        name: 'Mr. Pradeep Kumar',
-        role: 'Senior Kannada & Linguistics Faculty',
-        room: 'Room 105 (1st Floor)',
+        name: 'Ms. Divya Dogra',
+        role: 'Facilitator of Inclusive Learning',
+        room: 'Inclusive Learning Pod 201',
         status: 'Available',
       },
     ],
     activeClassrooms: [
       {
-        room: 'Room 302',
-        grade: 'Grade 10-A',
-        subject: 'Physics: Wave Mechanics & Optics',
-        teacher: 'Ms. Susmita',
-        students: 28,
+        room: 'Studio 302',
+        grade: 'Adroit (Grades 9–12)',
+        subject: 'Mathematical Studies & Physics Inquiry',
+        teacher: 'Ms. Sushmitha',
+        students: 16,
       },
       {
-        room: 'Room 204',
-        grade: 'Grade 8-B',
-        subject: 'Mathematics: Coordinate Geometry',
-        teacher: 'Ms. Ananya Rao',
-        students: 32,
+        room: 'Studio 204',
+        grade: 'Novitiate (Ages 5.9–10)',
+        subject: 'Language, Literature & Storytelling',
+        teacher: 'Ms. Sandhya Padmanabhan',
+        students: 18,
       },
       {
-        room: 'STEM Lab 201',
-        grade: 'Grade 9',
-        subject: 'Chemistry: Molecular Thermodynamics',
-        teacher: 'Dr. K. Ramesh',
-        students: 26,
+        room: 'Inclusive Pod 201',
+        grade: 'Mezzo (Ages 11–14)',
+        subject: 'Out-of-Syllabus Financial & Design Literacy',
+        teacher: 'Ms. Divya Dogra',
+        students: 14,
       },
       {
-        room: 'Room 105',
-        grade: 'Grade 7',
-        subject: 'Biology: Cell Division & Genetics',
-        teacher: 'Mr. Pradeep Kumar',
-        students: 24,
+        room: 'Inizio Wing 105',
+        grade: 'Inizio (Ages 3.8–5.8)',
+        subject: 'Rhythm, Early Numeracy & Play',
+        teacher: 'Ms. Shravani',
+        students: 15,
       },
     ],
     environment: {
       temp: '23.8°C',
       aqi: '42 AQI (Good)',
-      noise: '44 dB (Study Mode)',
-      hvac: 'Central VAV Level 2 Active',
+      noise: '44 dB (Collaborative)',
+      hvac: 'Natural Cross-Ventilation + VAV',
     },
     summary:
-      'Core 4-storey academic building housing secondary cohorts, multimedia classrooms, digital blackboards, and STEM experimental pods.',
+      'Open-plan learning studios designed for low mentor-to-learner ratios across Inizio, Novitiate, Mezzo, and Adroit stages without rigid rote classrooms.',
   },
   {
     id: 'resource-centre',
-    name: 'Open Learning Resource Centre & Library',
-    shortName: 'Library & Resource Hub',
-    badge: 'Library & Digital Media',
+    name: 'TURN — The Unusual Reading Nook & Open Library',
+    shortName: 'TURN Open Library',
+    badge: 'TURN Reading Nook',
     category: 'Library & Hub',
     coords: [-1.7, 8.5, 7.5],
     cameraAngle: -0.5,
     occupancy: {
-      current: 38,
-      max: 50,
-      percentage: 76,
+      current: 32,
+      max: 45,
+      percentage: 71,
       status: 'Optimal',
     },
     staffPresent: [
       {
-        name: 'Mr. Raghavan N.',
-        role: 'Head Librarian & Archivist',
-        room: 'Circulation & Reference Desk',
+        name: 'Ms. Meenakshi Sundaram',
+        role: 'TURN Open Library Curator',
+        room: 'Circulation & Reading Alcove',
         status: 'Available',
       },
       {
-        name: 'Ms. Kavita Sundaram',
-        role: 'Digital Learning & VR Curator',
-        room: 'Holo-Pod Media Lab',
+        name: 'Ms. Sandhya Padmanabhan',
+        role: 'Literature & Reading Circle Mentor',
+        room: 'Terracotta Balcony Alcove',
         status: 'Available',
       },
     ],
     activeClassrooms: [
       {
-        room: 'Holo-Pods 1–4',
-        grade: 'Grade 10-A',
-        subject: '3D Spatial Biology Simulation',
-        teacher: 'Ms. Kavita Sundaram',
-        students: 8,
+        room: 'TURN Reading Nook',
+        grade: 'Novitiate & Mezzo',
+        subject: 'Choice-Driven Reading & Book Dialogues',
+        teacher: 'Ms. Sandhya Padmanabhan',
+        students: 14,
       },
       {
-        room: 'Silent Reading Bay',
-        grade: 'Cohort Mixed',
-        subject: 'Independent Research & Study',
-        teacher: 'Mr. Raghavan N.',
-        students: 18,
-      },
-      {
-        room: 'Terracotta Balcony Alcove',
-        grade: 'Grade 8-B',
-        subject: 'Philosophy Discussion Circle',
-        teacher: 'Peer Study Lead',
+        room: 'Reference Collection',
+        grade: 'Adroit (15–19 yrs)',
+        subject: 'NIOS, CBSE & Cambridge Independent Research',
+        teacher: 'Ms. Meenakshi Sundaram',
         students: 12,
+      },
+      {
+        room: 'Storytelling Steps',
+        grade: 'Inizio (3.8–5.8 yrs)',
+        subject: 'Illustrated Read-Aloud & Wonder Hour',
+        teacher: 'Ms. Shravani',
+        students: 10,
       },
     ],
     environment: {
       temp: '22.2°C',
       aqi: '38 AQI (Pristine)',
-      noise: '32 dB (Whisper Quiet)',
-      hvac: 'Quiet Flow Filter Active',
+      noise: '32 dB (Calm Reading)',
+      hvac: 'Natural Daylight & Quiet Flow',
     },
     summary:
-      'Terracotta jali-screened learning hub featuring 10,000+ volumes, 4 VR holographic study pods, and peer discussion lounges.',
+      'The Unusual Reading Nook (TURN): an inviting, sunlit terracotta resource library nurturing lifelong reading habits, research projects, and literature conversations.',
   },
   {
     id: 'admin-pavilion',
-    name: 'Administrative & Academic Directorate',
-    shortName: 'Administration Suite',
-    badge: 'Operations & Leadership',
+    name: 'Founder, Centre Head & Administration Pavilion',
+    shortName: 'Leadership & Admin',
+    badge: 'Centre Leadership',
     category: 'Administration',
     coords: [14, 4.0, 6],
     cameraAngle: -1.75,
     occupancy: {
-      current: 14,
+      current: 12,
       max: 20,
-      percentage: 70,
+      percentage: 60,
       status: 'Optimal',
     },
     staffPresent: [
       {
-        name: 'Ms. Sandhya',
-        role: 'Super Admin, Director of Academics',
-        room: 'Director Suite 101',
+        name: 'Ms. Sandhya Gatti',
+        role: 'Founder & Managing Director',
+        room: 'Founder Study 101',
         status: 'Available',
       },
       {
         name: 'Ms. Amrita',
-        role: 'Head of Operations & Admissions',
-        room: 'Operations Suite 102',
+        role: 'Centre Head & Chief Mentor',
+        room: 'Centre Head Suite 102',
         status: 'Available',
       },
       {
-        name: 'Ms. Bharthi',
-        role: 'Support Coordinator & Desk Officer',
-        room: 'Support Desk 104',
+        name: 'Ms. Sangeetha',
+        role: 'Chief Administrator',
+        room: 'Admissions & Family Desk 104',
         status: 'On Duty',
       },
     ],
     activeClassrooms: [
       {
-        room: 'Admissions Bay',
-        grade: 'Incoming Cohort',
-        subject: 'Parent Counseling & Virtual Tours',
-        teacher: 'Ms. Amrita',
+        room: 'Parent Welcome Room',
+        grade: 'Prospective Families',
+        subject: 'Admissions Conversations & Campus Visits',
+        teacher: 'Ms. Sangeetha & Ms. Amrita',
         students: 4,
       },
       {
-        room: 'Operations Suite',
-        grade: 'Staff Conference',
-        subject: '12-Hour Timetable Scheduling Review',
-        teacher: 'Ms. Bharthi',
-        students: 6,
-      },
-      {
-        room: 'Directorate',
-        grade: 'Administration',
-        subject: 'Supervision & Academic Audit Sync',
-        teacher: 'Ms. Sandhya',
-        students: 4,
+        room: 'Mentor Huddle',
+        grade: 'Facilitator Circle',
+        subject: 'NEP 2020 Co-Creators Curriculum Sync',
+        teacher: 'Ms. Sandhya Gatti',
+        students: 8,
       },
     ],
     environment: {
       temp: '23.0°C',
       aqi: '40 AQI (Good)',
-      noise: '48 dB (Normal)',
+      noise: '46 dB (Warm & Calm)',
       hvac: 'Eco-Smart Cooling On',
     },
     summary:
-      'Executive pavilion housing the academic directorate, super admin console, coordinator triage desk, and visitor reception.',
+      'Leadership and parent welcome pavilion at #2060, Sampigehalli, Jakkur—home to Founder Sandhya Gatti, Centre Head Amrita, and Chief Administrator Sangeetha.',
   },
   {
     id: 'research-tower',
-    name: 'Neural Robotics & Applied Science Annex',
-    shortName: 'Robotics & STEM Annex',
-    badge: 'Research Labs',
+    name: 'Science Inquiry Labs, Wander & Wonder Courtyard & Young Farmers',
+    shortName: 'Science Labs & Gardens',
+    badge: 'Labs & Nature Courtyard',
     category: 'Robotics & Labs',
     coords: [-17, 10.2, -8],
     cameraAngle: 1.75,
     occupancy: {
-      current: 48,
-      max: 60,
-      percentage: 80,
+      current: 36,
+      max: 50,
+      percentage: 72,
       status: 'Optimal',
     },
     staffPresent: [
       {
-        name: 'Prof. Devendra Joshi',
-        role: 'Dean of Neural Computing & Robotics',
-        room: 'Robotics Bay 401',
+        name: 'Ms. Sushmitha',
+        role: 'Mathematical & Scientific Inquiry Mentor',
+        room: 'Applied Science Lab A',
         status: 'In Session',
       },
       {
-        name: 'Ms. Shilpa M.',
-        role: 'Molecular Biotech Lab Scientist',
-        room: 'Cleanroom Lab A',
+        name: 'Ms. Divya Dogra',
+        role: 'Wander & Wonder Ecology & Inclusive Lead',
+        room: 'Swayam Young Farmers Garden',
         status: 'Available',
       },
     ],
     activeClassrooms: [
       {
-        room: 'Robotics Bay 401',
-        grade: 'Grade 10 Olympiad',
-        subject: 'Autonomous Robotics & Kinematics',
-        teacher: 'Prof. Devendra Joshi',
-        students: 22,
+        room: 'Applied Science Lab A',
+        grade: 'Adroit & Mezzo',
+        subject: 'Hands-On Physics, Chemistry & Biology Experiments',
+        teacher: 'Ms. Sushmitha',
+        students: 16,
       },
       {
-        room: 'Cleanroom Lab A',
-        grade: 'Grade 9 Honors',
-        subject: 'Gene Expression & CRISPR Modeling',
-        teacher: 'Ms. Shilpa M.',
+        room: 'Young Farmers Plots',
+        grade: 'Novitiate & Mezzo',
+        subject: 'Swayam Young Farmers Sustainable Ecology',
+        teacher: 'Ms. Divya Dogra',
         students: 14,
       },
       {
-        room: 'Rapid Prototyping',
-        grade: 'Makerspace Team',
-        subject: '3D Laser Sintering & Drone Aerodynamics',
-        teacher: 'Lab Assistant',
+        room: 'Out-of-Syllabus Studio',
+        grade: 'Mixed Cohorts',
+        subject: 'Media Literacy, Design Thinking & Financial Skills',
+        teacher: 'Peer Mentor Circle',
         students: 12,
       },
     ],
     environment: {
-      temp: '21.5°C',
-      aqi: '28 AQI (HEPA Ultra Clean)',
-      noise: '52 dB (Lab Equipment)',
-      hvac: 'Cleanroom Positive Pressure Active',
+      temp: '24.2°C',
+      aqi: '32 AQI (Fresh Garden Air)',
+      noise: '50 dB (Active Discovery)',
+      hvac: 'Open-Air Courtyard Breeze',
     },
     summary:
-      'Advanced scientific tower equipped with robotic arms, automated microscopes, laser cutters, and computational physics clusters.',
+      'Integrated science & discovery labs paired with the Wander and Wonder outdoor courtyard and Swayam Young Farmers ecological learning gardens.',
   },
   {
     id: 'gate2-security',
-    name: 'Campus South Arrival Kiosk (Gate 2)',
-    shortName: 'Gate 2 Arrival Kiosk',
-    badge: 'Security & Access Control',
+    name: 'Sampigehalli Main Arrival Gate & Swayam Vichar Manch Amphitheatre',
+    shortName: 'Gate 2 & Amphitheatre',
+    badge: 'Safety & Forum',
     category: 'Gate & Safety',
     coords: [0, 3.2, 13.5],
     cameraAngle: 0,
     occupancy: {
-      current: 15,
-      max: 25,
+      current: 18,
+      max: 30,
       percentage: 60,
       status: 'Moderate',
     },
@@ -359,40 +352,40 @@ export const CAMPUS_HOTSPOTS: CampusHotspot[] = [
       {
         name: 'Mr. Sai',
         role: 'Gate 2 Senior Security Officer',
-        room: 'Gate 2 Kiosk Booth',
+        room: 'Sampigehalli Gate 2 Kiosk',
         status: 'On Duty',
       },
       {
-        name: 'Officer Anand V.',
-        role: 'Visitor Logistics & Perimeter Safety',
-        room: 'NFC Verification Lane',
+        name: 'Mr. Manjunath Gowda',
+        role: 'Route 14 School Bus Captain',
+        room: 'Campus Bus Arrival Bay',
         status: 'On Duty',
       },
     ],
     activeClassrooms: [
       {
-        room: 'NFC Lane 1',
-        grade: 'Student Arrival',
-        subject: 'Gate 2 Digital Check-In Tap',
-        teacher: 'Mr. Sai',
-        students: 8,
+        room: 'Swayam Vichar Manch',
+        grade: 'All Stages',
+        subject: 'Philosophical & Student Dialogue Amphitheatre',
+        teacher: 'Faculty Mentors',
+        students: 18,
       },
       {
-        room: 'Visitor Kiosk',
-        grade: 'Guests / Parents',
-        subject: 'Digital Pass Authentication',
-        teacher: 'Officer Anand V.',
-        students: 7,
+        room: 'Gate 2 Bus Bay',
+        grade: 'Daily Arrivals',
+        subject: 'NFC Safe Arrival Check-In & Route 14 Drop',
+        teacher: 'Mr. Sai',
+        students: 12,
       },
     ],
     environment: {
-      temp: '26.4°C',
-      aqi: '48 AQI (Acceptable)',
-      noise: '58 dB (Campus Roadway)',
-      hvac: 'Outdoor Air Velocity 1.8 m/s',
+      temp: '26.1°C',
+      aqi: '46 AQI (Acceptable)',
+      noise: '54 dB (Campus Roadway)',
+      hvac: 'Outdoor Canopy Shade',
     },
     summary:
-      'Perimeter security outpost with dual NFC smart turnstiles, parent notification beacons, and real-time transit logs.',
+      'Staffed arrival gate at #2060 Sampigehalli with parent check-in alerts alongside the Swayam Vichar Manch open-air amphitheatre and sports lawn.',
   },
 ];
 
@@ -718,7 +711,7 @@ export const CampusHologram: React.FC<CampusHologramProps> = ({ isDark = false }
       x.font = 'bold 38px sans-serif';
       x.textAlign = 'center';
       x.textBaseline = 'middle';
-      x.fillText('TATTVASAYAM • OPEN LEARNING RESOURCE CENTRE', w / 2, h / 2);
+      x.fillText('TATTVASWAYAM • OPEN LEARNING RESOURCE CENTRE', w / 2, h / 2);
     });
     addPlane(
       4.6,
@@ -1085,30 +1078,20 @@ export const CampusHologram: React.FC<CampusHologramProps> = ({ isDark = false }
 
   return (
     <div className="relative w-full rounded-2xl overflow-hidden border border-orange-200 dark:border-amber-900 bg-orange-50/50 dark:bg-stone-950/70 shadow-sm transition-all duration-300">
-      {/* Hologram Header Overlay */}
+      {/* Map Header Overlay */}
       <div className="absolute top-3 left-4 right-4 z-10 flex flex-wrap items-center justify-between pointer-events-none gap-2">
-        <div className="flex items-center gap-2 pointer-events-auto bg-white/85 dark:bg-stone-900/85 backdrop-blur-md px-3 py-1.5 rounded-xl border border-orange-200 dark:border-amber-900 shadow-sm text-xs text-orange-950 dark:text-orange-200 font-medium">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
-          </span>
-          <span className="font-bold">Jakkur Campus Holographic Digital Twin</span>
-          <span className="text-stone-400 dark:text-stone-500">•</span>
-          <span className="text-[11px] font-mono text-orange-600 dark:text-orange-400">{fps} FPS</span>
+        <div className="flex items-center gap-2 pointer-events-auto bg-white/90 dark:bg-stone-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-orange-200 dark:border-amber-900 shadow-sm text-xs text-orange-950 dark:text-orange-200 font-medium">
+          <span className="font-bold">Jakkur Campus Interactive Map</span>
         </div>
 
         {/* Real-Time Weather Status Indicator for Jakkur Campus */}
         <div className="pointer-events-auto flex items-center gap-1.5">
           <button
             onClick={() => setShowWeatherDiagnostics((prev) => !prev)}
-            title="Click to view full Jakkur campus microclimate and environmental diagnostics"
+            title="Click to view Jakkur campus weather details"
             className="flex items-center gap-2 bg-white/90 dark:bg-stone-900/90 hover:bg-orange-50/90 dark:hover:bg-stone-800/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-orange-200 dark:border-amber-900 shadow-sm text-xs font-semibold text-stone-800 dark:text-stone-200 transition group cursor-pointer"
           >
             <div className="flex items-center gap-1">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
               {weather.weatherCode >= 51 ? (
                 <CloudRain className="w-3.5 h-3.5 text-blue-500" />
               ) : weather.weatherCode >= 1 ? (
@@ -1187,9 +1170,9 @@ export const CampusHologram: React.FC<CampusHologramProps> = ({ isDark = false }
       {!webGlSupported && (
         <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-orange-50/90 dark:bg-stone-950/90 backdrop-blur-md text-center z-20">
           <AlertCircle className="w-12 h-12 text-amber-600 mb-2" />
-          <h4 className="font-semibold text-stone-900 dark:text-stone-100">WebGL Acceleration Not Active</h4>
+          <h4 className="font-semibold text-stone-900 dark:text-stone-100">Interactive 3D Campus Map Unavailable</h4>
           <p className="text-xs text-stone-600 dark:text-stone-400 max-w-sm mt-1">
-            Your browser or environment has restricted 3D hardware acceleration. The real-time error telemetry service has logged this diagnostic event.
+            Your browser has disabled 3D graphics rendering. You can still browse campus buildings and book an in-person tour with our Admissions team.
           </p>
         </div>
       )}
@@ -1333,7 +1316,7 @@ export const CampusHologram: React.FC<CampusHologramProps> = ({ isDark = false }
                 <span className="px-2 py-0.5 rounded-full bg-orange-100 dark:bg-stone-800 text-[10px] font-extrabold text-orange-800 dark:text-orange-300 uppercase tracking-wider">
                   {selectedHotspot.badge}
                 </span>
-                <span className="text-[10px] text-stone-500 font-semibold">• Live Telemetry</span>
+                <span className="text-[10px] text-stone-500 font-semibold">• Live Campus Status</span>
               </div>
               <h3 className="text-base sm:text-lg font-black text-stone-900 dark:text-stone-100 leading-tight">
                 {selectedHotspot.name}

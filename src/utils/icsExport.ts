@@ -62,14 +62,14 @@ export interface IcsExportOptions {
  * Generates an RFC 5545 compliant .ics string from academy events and counseling
  */
 export function generateIcsContent(options: IcsExportOptions): string {
-  const calName = options.calendarName || 'Tattvasayam Future Academy - Academic Calendar';
+  const calName = options.calendarName || 'Tattvaswayam Future Academy - Academic Calendar';
   const calDesc = options.description || 'Institutional Academic Schedule, Exams, Exhibitions, and Counseling';
   const nowUtc = formatIcsDateTimeUtc(new Date());
 
   const lines: string[] = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Tattvasayam Future Academy//Academic Calendar 2026//EN',
+    'PRODID:-//Tattvaswayam Future Academy//Academic Calendar 2026//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     `X-WR-CALNAME:${escapeIcsText(calName)}`,
@@ -91,7 +91,7 @@ export function generateIcsContent(options: IcsExportOptions): string {
 
   // Academic Events
   filteredEvents.forEach((ev, idx) => {
-    const uid = `event-${idx}-${ev.date}-${ev.title.replace(/\s+/g, '-').toLowerCase()}@tattvasayam.edu.in`;
+    const uid = `event-${idx}-${ev.date}-${ev.title.replace(/\s+/g, '-').toLowerCase()}@tattvaswayam.edu.in`;
     const dtStart = formatIcsDate(ev.date);
     const dtEnd = getNextDayIcsDate(ev.date);
     const categoryUpper = (ev.type || 'ACADEMIC').toUpperCase();
@@ -105,9 +105,9 @@ export function generateIcsContent(options: IcsExportOptions): string {
     if (ev.description) {
       lines.push(`DESCRIPTION:${escapeIcsText(ev.description)}`);
     } else {
-      lines.push(`DESCRIPTION:${escapeIcsText(`Category: ${ev.type}. Official event of Tattvasayam Future Academy.`)}`);
+      lines.push(`DESCRIPTION:${escapeIcsText(`Category: ${ev.type}. Official event of Tattvaswayam Future Academy.`)}`);
     }
-    lines.push('LOCATION:Tattvasayam Future Academy\\, 2060 Jakkur Plantation Rd\\, Bengaluru');
+    lines.push('LOCATION:Tattvaswayam Open Learning & Future Academy\\, #2060\\, Sampigehalli\\, Jakkur\\, Bengaluru 560064');
     lines.push(`CATEGORIES:${categoryUpper}`);
     lines.push('STATUS:CONFIRMED');
     lines.push('TRANSP:TRANSPARENT');
@@ -124,7 +124,7 @@ export function generateIcsContent(options: IcsExportOptions): string {
       if (options.startDate && c.date < options.startDate) return;
       if (options.endDate && c.date > options.endDate) return;
 
-      const uid = `counseling-${c.id}-${c.date}@tattvasayam.edu.in`;
+      const uid = `counseling-${c.id}-${c.date}@tattvaswayam.edu.in`;
       const dtStart = formatIcsDate(c.date);
       const dtEnd = getNextDayIcsDate(c.date);
 
@@ -151,7 +151,7 @@ export function generateIcsContent(options: IcsExportOptions): string {
 /**
  * Triggers a browser download of an .ics file
  */
-export function downloadIcsFile(icsContent: string, fileName = 'tattvasayam-academic-calendar.ics') {
+export function downloadIcsFile(icsContent: string, fileName = 'tattvaswayam-academic-calendar.ics') {
   const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -179,8 +179,8 @@ export function generateGoogleCalendarWebLink(event: {
     action: 'TEMPLATE',
     text: event.title,
     dates: `${dtStart}/${dtEnd}`,
-    details: event.description || 'Tattvasayam Future Academy Academic Schedule',
-    location: event.location || 'Tattvasayam Future Academy, Jakkur, Bengaluru',
+    details: event.description || 'Tattvaswayam Future Academy Academic Schedule',
+    location: event.location || 'Tattvaswayam Future Academy, Jakkur, Bengaluru',
   });
 
   return `https://calendar.google.com/calendar/render?${params.toString()}`;

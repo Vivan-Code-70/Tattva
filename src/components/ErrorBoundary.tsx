@@ -54,7 +54,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </h2>
 
             <p className="text-xs text-stone-600 dark:text-stone-400">
-              An unexpected rendering crash was intercepted. The incident, device state, and stack trace have been logged to the Real-Time Error Telemetry stream.
+              An unexpected display issue occurred. Please reload the page to resume your session cleanly.
             </p>
 
             {this.state.error && (

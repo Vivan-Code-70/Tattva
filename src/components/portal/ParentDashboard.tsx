@@ -113,7 +113,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
       { name: 'Judicial Layout Gate', timeScheduled: '07:35 AM', eta: 'Departed', status: 'passed' },
       { name: 'Sahakar Nagar Main Cross', timeScheduled: '07:50 AM', eta: '07:49 AM', status: 'current' },
       { name: 'Amruthahalli Signal', timeScheduled: '08:05 AM', eta: '08:06 AM', status: 'upcoming' },
-      { name: 'Tattvasayam Future Academy, Gate 2', timeScheduled: '08:18 AM', eta: '08:18 AM', status: 'upcoming' },
+      { name: 'Tattvaswayam Future Academy, Gate 2', timeScheduled: '08:18 AM', eta: '08:18 AM', status: 'upcoming' },
     ],
   },
   attendanceRecords = [],
@@ -273,7 +273,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
         {/* Quick Summary Pill */}
         <div className="flex items-center gap-3">
           <div className="text-right">
-            <span className="text-[10px] text-stone-400 uppercase font-bold tracking-wider block">Neural GPA</span>
+            <span className="text-[10px] text-stone-400 uppercase font-bold tracking-wider block">Cumulative GPA</span>
             <span className="text-xl font-extrabold text-orange-600 dark:text-orange-400 font-mono">{neuralGpa}%</span>
           </div>
           <div className="w-px h-8 bg-stone-200 dark:bg-stone-700" />
@@ -398,7 +398,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                     <span className="text-xs font-mono font-bold">{child.title}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-stone-500">Neural GPA Median:</span>
+                    <span className="text-xs text-stone-500">Term Grade Average:</span>
                     <span className="text-sm font-extrabold font-mono text-orange-600">{neuralGpa}% (A+)</span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -528,7 +528,12 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
               <div className="p-3.5 rounded-xl bg-orange-50/60 dark:bg-stone-800/60 border border-orange-200 dark:border-stone-700 text-xs flex items-center justify-between gap-3">
                 <div className="space-y-0.5">
                   <span className="font-bold text-stone-800 dark:text-stone-200 block">Transit Status:</span>
-                  {busRoute.isLocationSharingActive !== false ? (
+                  {busRoute.dutyStatus === 'OFF_DUTY' ? (
+                    <span className="text-[11px] text-slate-600 dark:text-slate-300 font-semibold flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                      Privacy Protected: Location sharing is paused while off duty.
+                    </span>
+                  ) : busRoute.isLocationSharingActive !== false && busRoute.geofenceStatus !== 'OUTSIDE_ROUTE_MASKED' ? (
                     <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       {busRoute.routeNumber} • Driver Broadcasting Live GPS
@@ -544,7 +549,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                   onClick={() => setActiveTab('bus')}
                   className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl text-xs shadow-xs transition shrink-0 cursor-pointer"
                 >
-                  {busRoute.isLocationSharingActive !== false ? 'Track Live Bus' : 'View Bus Schedule'}
+                  {busRoute.dutyStatus !== 'OFF_DUTY' && busRoute.isLocationSharingActive !== false ? 'Track Live Bus' : 'View Bus Schedule'}
                 </button>
               </div>
             </div>
@@ -572,7 +577,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                 {optedSubjects.length} of {SUBJECTS.length} Subjects Opted
               </span>
               <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-lg">
-                Neural GPA: {neuralGpa}%
+                Cumulative GPA: {neuralGpa}%
               </span>
             </div>
           </div>
@@ -738,8 +743,10 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
             </div>
           )}
 
-          {busRoute.isLocationSharingActive !== false ? (
-            /* ACTIVE COMMUTE TRACKING: Visible only when driver shares location */
+          {busRoute.dutyStatus !== 'OFF_DUTY' &&
+          busRoute.geofenceStatus !== 'OUTSIDE_ROUTE_MASKED' &&
+          busRoute.isLocationSharingActive !== false ? (
+            /* ACTIVE COMMUTE TRACKING: Visible only when driver is On Duty inside Route 14 corridor & shares location */
             <div className="p-5 sm:p-6 rounded-[16px] bg-gradient-to-br from-orange-500 via-orange-600 to-amber-700 text-white shadow-md space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/20 pb-4">
                 <div className="space-y-1">
@@ -794,14 +801,18 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
               </div>
             </div>
           ) : (
-            /* WAITING STATE: Rendered when driver has NOT shared location */
-            <div className="p-6 rounded-[16px] bg-gradient-to-br from-stone-900 via-stone-850 to-stone-900 border border-amber-500/40 text-white shadow-lg space-y-5">
+            /* WAITING / PRIVACY STATE: Rendered when driver is Off Duty, outside corridor geofence, or broadcast paused */
+            <div className="p-6 rounded-[16px] bg-gradient-to-br from-slate-900 via-slate-850 to-slate-900 border border-amber-500/40 text-white shadow-lg space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
                     <span className="text-xs font-mono font-bold uppercase tracking-wider text-amber-300">
-                      Waiting for Driver to Share Location
+                      {busRoute.dutyStatus === 'OFF_DUTY'
+                        ? 'Privacy Protected: Location sharing is paused while off duty.'
+                        : busRoute.geofenceStatus === 'OUTSIDE_ROUTE_MASKED'
+                        ? 'Geofence Privacy Active: Outside School Corridor'
+                        : 'Waiting for Driver to Share Location'}
                     </span>
                     <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono">
                       Location Private
@@ -810,8 +821,10 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                   <h3 className="text-xl sm:text-2xl font-black font-display text-white">
                     {child.name}'s Morning Bus Route ({busRoute.routeNumber})
                   </h3>
-                  <p className="text-xs text-stone-300 max-w-2xl leading-relaxed">
-                    Driver <strong className="text-white">{busRoute.driverName}</strong> has not yet initiated live location sharing for this trip. Under the academy's digital safety policy, real-time GPS coordinates, vehicle speed, and live map tracking are visible only when the driver begins sharing location from the cabin terminal.
+                  <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
+                    {busRoute.dutyStatus === 'OFF_DUTY'
+                      ? `Privacy Protected: Location sharing is paused while off duty. Scheduled Route 14 timetable is shown below and live bus tracking automatically resumes when ${busRoute.driverName} begins the official school run.`
+                      : `Driver ${busRoute.driverName} has not yet initiated live location sharing within the Route 14 corridor. Under the academy's privacy-first geofence policy, real-time GPS coordinates are visible only during active school routes.`}
                   </p>
                 </div>
 
@@ -892,21 +905,28 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-stone-400 block">
-                  {busRoute.isLocationSharingActive !== false
+                  {busRoute.dutyStatus !== 'OFF_DUTY' &&
+                  busRoute.geofenceStatus !== 'OUTSIDE_ROUTE_MASKED' &&
+                  busRoute.isLocationSharingActive !== false
                     ? 'Route Stops & Real-Time Live Tracking:'
-                    : 'Route Stops & Scheduled Timetable (Awaiting Driver Broadcast):'}
+                    : 'Route Stops & Scheduled Timetable (Location Private):'}
                 </span>
-                {busRoute.isLocationSharingActive === false && (
+                {(busRoute.dutyStatus === 'OFF_DUTY' ||
+                  busRoute.geofenceStatus === 'OUTSIDE_ROUTE_MASKED' ||
+                  busRoute.isLocationSharingActive === false) && (
                   <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5" />
-                    <span>Scheduled times shown until driver starts trip</span>
+                    <span>Scheduled times shown until driver is On Duty on Route 14</span>
                   </span>
                 )}
               </div>
 
               <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-orange-200 dark:before:bg-stone-700">
                 {busRoute.stops.map((stop, idx) => {
-                  const isSharing = busRoute.isLocationSharingActive !== false;
+                  const isSharing =
+                    busRoute.dutyStatus !== 'OFF_DUTY' &&
+                    busRoute.geofenceStatus !== 'OUTSIDE_ROUTE_MASKED' &&
+                    busRoute.isLocationSharingActive !== false;
                   return (
                     <div key={idx} className="relative flex items-center justify-between text-xs">
                       <div
@@ -1280,7 +1300,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                 <span className="font-bold text-stone-900 dark:text-stone-100 block">
                   {FEE_ITEMS[checkoutFeeIndex].name}
                 </span>
-                <span className="text-[11px] text-stone-500">Beneficiary: Tattvasayam Future Academy</span>
+                <span className="text-[11px] text-stone-500">Beneficiary: Tattvaswayam Future Academy</span>
               </div>
               <span className="text-base font-extrabold font-mono text-orange-600">
                 ₹{FEE_ITEMS[checkoutFeeIndex].amount.toLocaleString()}
@@ -1313,7 +1333,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
               {checkoutPaymentMethod === 'UPI' && (
                 <div className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-[11px] text-stone-600 dark:text-stone-300 space-y-1">
                   <span className="font-bold block">Instant VPA / QR Handle:</span>
-                  <div className="font-mono text-orange-600 font-bold">tattvasayam.fees@okhdfcbank</div>
+                  <div className="font-mono text-orange-600 font-bold">tattvaswayam.fees@okhdfcbank</div>
                   <span className="text-stone-400">Zero surcharge for standard educational transfers</span>
                 </div>
               )}

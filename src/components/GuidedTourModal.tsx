@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Sparkles,
   Shield,
   GraduationCap,
   Users,
@@ -9,14 +8,10 @@ import {
   ArrowRight,
   X,
   KeyRound,
+  BookOpen,
   Bus,
-  CreditCard,
-  Printer,
-  Boxes,
-  Activity,
   Award,
 } from 'lucide-react';
-import { UserRole } from '../types';
 
 interface GuidedTourModalProps {
   isOpen: boolean;
@@ -36,221 +31,226 @@ export const GuidedTourModal: React.FC<GuidedTourModalProps> = ({
   const tourSteps = [
     {
       id: 'welcome',
-      title: 'Academy Presentation Guide',
-      subtitle: 'Complete Walkthrough for School Assembly & Leadership Presentation',
-      badge: 'Demo Playbook',
+      title: 'Tattvaswayam Platform Overview',
+      subtitle: 'Academic Portal Walkthrough for Mentors, Parents & Leadership',
+      badge: 'Overview',
       description:
-        'Tattvasayam Future Academy (Jakkur, Bengaluru) combines integral Indian pedagogical philosophy with cutting-edge academic intelligence. Built with React 19, Tailwind CSS v4, and modern Gemini AI.',
+        'Tattvaswayam Open Learning Resource Centre & Future Academy (#2060, Sampigehalli, Jakkur, Bengaluru) integrates NEP 2020 inquiry-based learning across Inizio, Novitiate, Mezzo & Adroit stages with CBSE, Cambridge & NIOS pathway readiness.',
       highlights: [
-        '7 Role-specific tailored workspaces (Student, Facilitator, Staff, Parent, Admin, Coordinator, Principal)',
-        '30-Second cryptographic OTP authentication with MPIN phone-free fallback',
-        'Interactive 3D architectural campus twin & live hologram centrepiece',
-        'Printable official CBSE/Cambridge diploma transcript & 13-subject mastery engine',
+        '9 role-specific workspaces (Student, Mentor, Parent, Centre Head, Founder/Admin, Chief Admin, Gate Staff, Librarian, Bus Driver)',
+        '30-second RFC 6238 OTP authentication with 6-digit Master PIN fallback',
+        'Interactive 3D Jakkur campus map featuring TURN Reading Nook & Swayam Vichar Manch',
+        'Printable A4 transcripts across 13 disciplines with mentor feedback',
       ],
       recommendedRole: 'principal',
-      roleLabel: 'Dr. B. R. Shenoy (Principal)',
+      roleLabel: 'Ms. Amrita (Centre Head)',
     },
     {
       id: 'principal',
-      title: '1. Executive Leadership Workspace',
-      subtitle: 'Principal Dr. B. R. Shenoy',
-      badge: 'Principal Role',
+      title: '1. Centre Head Leadership Workspace',
+      subtitle: 'Centre Head & Chief Mentor Ms. Amrita',
+      badge: 'Centre Head',
       description:
-        'Head-of-school executive oversight: campus telemetry, departmental attendance matrix, live Bus Route 14 fleet monitor, and circular acknowledgment tracker.',
+        'Leadership oversight covering learner attendance trends, mentor roster (Sushmitha, Sandhya Padmanabhan, Shravani, Divya Dogra), Route 14 live bus tracking, and circular dispatch.',
       highlights: [
-        'Campus Executive Pulse: 1,240 scholars, 98.4% attendance, 72 faculty',
-        'Academy Notice Board with live parent/student acknowledgement %',
-        'Live Fleet Route 14 tracker with speed, current stop, and ETA',
-        'One-click official circular broadcast to all faculty and families',
+        'Campus academic summary across Inizio, Novitiate, Mezzo & Adroit stages',
+        'Academy Notice Board with parent and student acknowledgment tracking',
+        'Live Route 14 fleet status with stop progression and ETA monitoring',
+        'Direct circular publishing to mentors, learners, and families',
       ],
       recommendedRole: 'principal',
-      roleLabel: 'Launch Principal Workspace',
+      roleLabel: 'Open Centre Head Workspace',
     },
     {
       id: 'student',
-      title: '2. Student Learner Experience',
-      subtitle: 'Vivan Sharma (Grade 10-A) & Krishvika Patel (Grade 8-B)',
-      badge: 'Student Role',
+      title: '2. Student Workspace',
+      subtitle: 'Vivan Sharma (Grade 10-A)',
+      badge: 'Student',
       description:
-        'Opens directly on an uncluttered Overview with 12-hour timetable, pending coursework submissions, attendance record, and fee due alerts.',
+        'Organized student hub featuring a 12-hour timetable, 13-subject coursework completion charts, daily academic goals, bus transport opt-in, and Gate 2 digital pass.',
       highlights: [
-        'Dedicated tabs: Overview, Coursework, Timetable, Services & Leave, Faculty Chat',
-        'Digital NFC ID Card badge with real-time Gate 2 tap simulation',
-        'Direct link to AI Study & Practice Quiz Lab',
-        'Coursework submission with instant status reflection',
+        'Dedicated views: Overview, Coursework, Timetable, Services & Leave, Faculty Chat',
+        'Digital QR & NFC ID pass with Gate 2 verification check-in',
+        'Direct link to the AI Inquiry & Study Lab for 13 disciplines',
+        'One-click PDF academic summary export',
       ],
       recommendedRole: 'vivan',
-      roleLabel: 'Launch Student Workspace (Vivan)',
+      roleLabel: 'Open Student Workspace',
     },
     {
       id: 'parent',
       title: '3. Parent & Guardian Portal',
-      subtitle: 'Dr. Ramesh Sharma (Parent of Vivan)',
-      badge: 'Parent Role',
+      subtitle: 'Dr. Ramesh Sharma (Guardian of Vivan)',
+      badge: 'Parent',
       description:
-        'Immediate overview of child’s academic progress, fee balances, and institutional messages, with integrated fee checkout and bus tracking.',
+        'Complete visibility into student academic progress, term fee settlement, downloadable receipts, bus transport opt-in, and live Route 14 bus tracking.',
       highlights: [
-        'Scholastic progress summary across 13 disciplines',
-        'Interactive Term Fee Checkout with official downloadable receipts',
-        'Live School Bus Route 14 tracker from Jakkur to Sahakara Nagar',
-        'Direct messaging channel with class mentor Ms. Susmita Roy',
+        'Scholastic mastery overview across all opted disciplines',
+        'Interactive term and transport fee checkout with downloadable receipts',
+        'Live School Bus Route 14 map from Yelahanka to Jakkur Gate 2',
+        'Direct communication with mathematics mentor Ms. Sushmitha',
       ],
       recommendedRole: 'pvivan',
-      roleLabel: 'Launch Parent Workspace (Dr. Ramesh)',
+      roleLabel: 'Open Parent Workspace',
     },
     {
       id: 'facilitator',
-      title: '4. Facilitator / Teacher Workspace',
-      subtitle: 'Ms. Susmita Roy (Senior Faculty, Physics & Math)',
-      badge: 'Facilitator Role',
+      title: '4. Facilitator & Mentor Workspace',
+      subtitle: 'Ms. Sushmitha (Facilitator, Mathematical Studies)',
+      badge: 'Faculty',
       description:
-        'Starts on Overview with today’s scheduled classes, quick attendance roll call, and students needing diagnostic intervention.',
+        'Focused teaching cockpit with daily scheduled classes, quick roll-call attendance marking, assignment publishing, and structured 45-minute inquiry lesson planning.',
       highlights: [
-        'Quick roll call for Grade 10-A synchronized to Gate 2 registry',
-        'Broadcast new coursework & assignments with automatic push alerts',
-        'AI Lesson Planner drafts 45-minute structured instructional plans',
-        'Live stream of student questions and automated quiz scores',
+        'Quick attendance marking synced to Gate 2 and school registry',
+        'Publish assignments across 13 disciplines with immediate updates',
+        'Structured 45-minute lesson planner and PDF report export',
+        'Review student practice quiz scores and inquiries',
       ],
       recommendedRole: 'susmita',
-      roleLabel: 'Launch Facilitator Workspace',
+      roleLabel: 'Open Faculty Workspace',
     },
     {
       id: 'admin',
-      title: '5. Administration & Super Admin',
-      subtitle: 'Ms. Sandhya V. & Ms. Amrita S.',
-      badge: 'Admin Role',
+      title: '5. Founder & Admin Workspace',
+      subtitle: 'Ms. Sandhya Gatti (Founder & Managing Director)',
+      badge: 'Admin',
       description:
-        'Opens strictly on Pending Approvals First: student/staff leave requests and counseling triage before all else.',
+        'Streamlined administrative triage: pending leave and counseling approvals, transport payment compliance charts, credential resets, and Gate 2 audit logs.',
       highlights: [
-        'Priority approval queue: instant Approve / Decline leave and counseling',
-        'Super Admin TOTP Security Directory with live 30s OTP dispatch',
-        'User credentials management: instant password / MPIN reset and unlock',
-        'Gate 2 entry logs and security audit telemetry',
+        'Priority approval queue for student and staff leave and counseling',
+        'Super Admin OTP Directory with active 30s TOTP codes',
+        'Instant password/MPIN reset and account unlock controls',
+        'Transport revenue compliance and Gate 2 security audit history',
       ],
       recommendedRole: 'sandhya',
-      roleLabel: 'Launch Super Admin Workspace',
+      roleLabel: 'Open Admin Workspace',
     },
     {
-      id: 'security-support',
-      title: '6. Campus Staff & Coordinator',
-      subtitle: 'Mr. Sai (Gate Security) & Ms. Bharthi (Academic Coordinator)',
-      badge: 'Operations Roles',
+      id: 'operations',
+      title: '6. Chief Administrator & Gate Security',
+      subtitle: 'Ms. Sangeetha (Chief Administrator) & Mr. Sai Kumar (Gate Staff)',
+      badge: 'Operations',
       description:
-        'Specialized operational task lists: Gate 2 QR badge scanning and 12-hour timetable master conflict scheduler.',
+        'Operational desks for 12-hour timetable scheduling, bus opt-in approvals, admissions & parent support triage, and Gate 2 QR/NFC turnstile verification.',
       highlights: [
-        'Staff: Live QR camera badge scanner with audible audio chimes',
-        'Staff: Real-time gate visitor log with biometric verification',
-        'Coordinator: Drag-and-drop 12-hour departmental timetable editor',
-        'Coordinator: Urgent student & parent support ticket triage',
+        'Gate Staff: Live QR camera scanner and contactless NFC tap approval',
+        'Gate Staff: Real-time campus visitor entry log',
+        'Chief Admin: 12-hour departmental timetable conflict editor',
+        'Chief Admin: Transport opt-in approvals & parent ticket triage',
       ],
-      recommendedRole: 'sai',
-      roleLabel: 'Launch Gate Security (Mr. Sai)',
+      recommendedRole: 'bharthi',
+      roleLabel: 'Open Operations Workspace',
     },
     {
-      id: 'librarian',
-      title: '7. Library Management System',
-      subtitle: 'Ms. Meenakshi Sundaram (Chief Academic Librarian)',
-      badge: 'Librarian Only',
+      id: 'librarian-driver',
+      title: '7. Library & Fleet Operations',
+      subtitle: 'Ms. Meenakshi S. (Librarian) & Mr. Manjunath G. (Bus Driver)',
+      badge: 'Library & Fleet',
       description:
-        'Restricted resource desk for catalog inventory control, RFID student/faculty checkout, hold queue fulfillment, and overdue fine analytics.',
+        'Specialized workspaces for Open Learning Resource Centre circulation and Route 14 bus navigation with live ML-predicted ETAs and commuter manifests.',
       highlights: [
-        'Open Learning Resource Centre: Full catalog of academic volumes',
-        'Circulation Desk: Instant checkout, renewals, and returned copy stock sync',
-        'Scholar Holds: Queue management and pickup notifications',
-        'Subject analytics and punctuality tracking across all borrowing scholars',
+        'Librarian: Catalog inventory, checkouts, renewals, and hold queue fulfillment',
+        'Bus Driver: Turn-by-turn road-snapped Route 14 map & traffic bypass toggle',
+        'Bus Driver: Live picked-up / to-drop tallies and daily rider manifest',
+        'Seamless one-click role switching via the bottom-right Role Switcher',
       ],
-      recommendedRole: 'librarian',
-      roleLabel: 'Launch Librarian Workspace (Ms. Meenakshi)',
+      recommendedRole: 'driver',
+      roleLabel: 'Open Bus Driver Workspace',
     },
     {
       id: 'reports',
-      title: '8. Official 13-Subject Transcript',
-      subtitle: 'Official Report Card with Browser Print & School Seal',
-      badge: 'Academic Records',
+      title: '8. Official 13-Subject Transcripts',
+      subtitle: 'Printable A4 Report Card & Google Workspace Export',
+      badge: 'Reports',
       description:
-        'Comprehensive 13-subject scholastic evaluation with Gemini AI educator remarks, cumulative neural GPA, and printable A4 report card.',
+        'Comprehensive 13-subject academic record featuring cumulative GPA calculations, attendance analytics, educator remarks, and browser print-ready A4 formatting.',
       highlights: [
-        '13 Subjects: Quantum Physics, Applied Math, Sanskrit, Robotics, World History...',
-        'AI Educator Remark generated dynamically based on student strengths',
-        'Printable official report card modal with school letterhead and principal seal',
-        'Formatted for clean standard A4 paper printing via window.print()',
+        '13 Subjects: Applied Physics, Mathematics, Sanskrit, Robotics, World History & more',
+        'Educator remarks tailored to individual subject strengths',
+        'Printable official report card with institutional crest and Centre Head verification',
+        'Export to CSV, Google Sheets, or Gmail summary dispatch',
       ],
       recommendedRole: 'principal',
-      roleLabel: 'View Official Report Card',
+      roleLabel: 'Open Reports & Transcripts',
     },
   ];
 
   const currentStep = tourSteps[selectedTourStep];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md overflow-y-auto">
-      <div className="relative w-full max-w-3xl bg-white dark:bg-stone-900 border border-orange-200 dark:border-amber-950 rounded-3xl shadow-2xl overflow-hidden flex flex-col my-6">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="quick-demo-tour-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/75 backdrop-blur-sm overflow-y-auto no-print"
+    >
+      <div className="relative w-full max-w-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col my-6 animate-view-enter">
         {/* Header */}
-        <div className="p-5 sm:p-6 bg-gradient-to-r from-orange-600 via-orange-500 to-amber-600 text-white flex items-center justify-between">
+        <div className="p-5 sm:p-6 bg-slate-900 text-white border-b border-slate-800 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white font-bold">
-              <Sparkles className="w-5 h-5 text-amber-200" />
+            <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+              <Compass className="w-5 h-5" />
             </div>
             <div>
-              <span className="text-[10px] font-mono uppercase tracking-widest text-orange-200 block">
-                Presentation Demo Assistant
+              <span className="text-[11px] font-medium text-amber-300 block">
+                Quick Demo Tour
               </span>
-              <h3 className="text-lg sm:text-xl font-extrabold leading-tight">
-                Tattvasayam Future Academy Tour
+              <h3 id="quick-demo-tour-title" className="text-lg sm:text-xl font-extrabold leading-tight font-display">
+                Tattvaswayam Future Academy Portal
               </h3>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition"
+            aria-label="Close Quick Demo Tour"
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Step Selector Ribbon */}
-        <div className="flex overflow-x-auto p-2 bg-stone-50 dark:bg-stone-950 border-b border-stone-200 dark:border-stone-800 gap-1 text-xs">
+        <div className="flex overflow-x-auto p-2 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 gap-1 text-xs">
           {tourSteps.map((s, idx) => (
             <button
               key={s.id}
+              type="button"
               onClick={() => setSelectedTourStep(idx)}
-              className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition ${
+              className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition cursor-pointer ${
                 selectedTourStep === idx
-                  ? 'bg-orange-600 text-white shadow-xs'
-                  : 'text-stone-600 dark:text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-800'
+                  ? 'bg-slate-900 dark:bg-amber-600 text-white shadow-2xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
               }`}
             >
-              {idx === 0 ? 'Overview' : s.badge}
+              {s.badge}
             </button>
           ))}
         </div>
 
         {/* Main Content Area */}
-        <div className="p-6 sm:p-8 space-y-6 flex-1 overflow-y-auto">
+        <div className="p-6 sm:p-7 space-y-5 flex-1 overflow-y-auto">
           <div>
-            <div className="inline-block px-3 py-1 rounded-full text-[11px] font-bold bg-orange-100 text-orange-800 dark:bg-orange-950/80 dark:text-orange-300 mb-2">
-              {currentStep.badge}
-            </div>
-            <h2 className="text-xl sm:text-2xl font-black text-stone-900 dark:text-stone-100">
+            <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+              {currentStep.subtitle}
+            </span>
+            <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-slate-100 mt-1 font-display">
               {currentStep.title}
             </h2>
-            <p className="text-xs font-semibold text-orange-600 dark:text-orange-400 mt-0.5">
-              {currentStep.subtitle}
-            </p>
-            <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 mt-2 leading-relaxed">
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-2 leading-relaxed">
               {currentStep.description}
             </p>
           </div>
 
           {/* Highlights checklist */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-orange-50/50 dark:bg-stone-800/40 border border-orange-200/80 dark:border-stone-700/80 space-y-2.5">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 block">
-              Key Capabilities for Presentation:
+          <div className="p-4 sm:p-5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 space-y-2.5">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
+              Key Capabilities
             </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
               {currentStep.highlights.map((h, i) => (
-                <div key={i} className="flex items-start gap-2 text-stone-800 dark:text-stone-200">
+                <div key={i} className="flex items-start gap-2 text-slate-800 dark:text-slate-200">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                   <span>{h}</span>
                 </div>
@@ -258,33 +258,36 @@ export const GuidedTourModal: React.FC<GuidedTourModalProps> = ({
             </div>
           </div>
 
-          {/* Quick Role Switcher Buttons */}
+          {/* Quick Role Switcher Buttons (All 9 Roles, 1 Account Per Role) */}
           <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-stone-400 block mb-2">
-              One-Click Switch to Any Role for Live Demo:
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-2">
+              Launch Any Role Workspace Directly
             </span>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
               {[
                 { key: 'vivan', label: 'Student (Vivan)', icon: GraduationCap },
-                { key: 'susmita', label: 'Facilitator (Susmita)', icon: Users },
                 { key: 'pvivan', label: 'Parent (Dr. Ramesh)', icon: Users },
-                { key: 'principal', label: 'Principal (Dr. Shenoy)', icon: Award },
-                { key: 'sandhya', label: 'Admin (Ms. Sandhya)', icon: Shield },
-                { key: 'bharthi', label: 'Coordinator (Bharthi)', icon: Compass },
-                { key: 'sai', label: 'Staff (Mr. Sai)', icon: KeyRound },
+                { key: 'susmita', label: 'Faculty (Ms. Sushmitha)', icon: Users },
+                { key: 'bharthi', label: 'Chief Admin (Ms. Sangeetha)', icon: Compass },
+                { key: 'principal', label: 'Centre Head (Ms. Amrita)', icon: Award },
+                { key: 'sandhya', label: 'Founder/Admin (Ms. Sandhya)', icon: Shield },
+                { key: 'sai', label: 'Gate Staff (Mr. Sai)', icon: KeyRound },
+                { key: 'librarian', label: 'Librarian (Ms. Meenakshi)', icon: BookOpen },
+                { key: 'driver', label: 'Bus Driver (Mr. Manjunath)', icon: Bus },
               ].map((role) => {
                 const Icon = role.icon;
                 return (
                   <button
                     key={role.key}
+                    type="button"
                     onClick={() => {
                       onSelectRole(role.key);
                       onClose();
                     }}
-                    className="p-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 hover:border-orange-500 hover:bg-orange-50/50 dark:hover:bg-stone-700 transition flex items-center gap-2 text-left"
+                    className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/80 hover:border-amber-500 hover:bg-amber-50/40 dark:hover:bg-slate-800 transition flex items-center gap-2 text-left cursor-pointer"
                   >
-                    <Icon className="w-3.5 h-3.5 text-orange-600 shrink-0" />
-                    <span className="font-bold text-[11px] text-stone-900 dark:text-stone-100 truncate">
+                    <Icon className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <span className="font-semibold text-[11px] text-slate-900 dark:text-slate-100 truncate">
                       {role.label}
                     </span>
                   </button>
@@ -295,30 +298,33 @@ export const GuidedTourModal: React.FC<GuidedTourModalProps> = ({
         </div>
 
         {/* Footer Navigation */}
-        <div className="p-4 sm:p-5 bg-stone-50 dark:bg-stone-950 border-t border-stone-200 dark:border-stone-800 flex items-center justify-between gap-3">
+        <div className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <button
+              type="button"
               disabled={selectedTourStep === 0}
               onClick={() => setSelectedTourStep((prev) => Math.max(0, prev - 1))}
-              className="px-3.5 py-1.5 rounded-xl border border-stone-300 dark:border-stone-700 text-xs font-bold text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition disabled:opacity-40"
+              className="px-3.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition disabled:opacity-40 cursor-pointer"
             >
               Previous
             </button>
             <button
+              type="button"
               disabled={selectedTourStep === tourSteps.length - 1}
               onClick={() => setSelectedTourStep((prev) => Math.min(tourSteps.length - 1, prev + 1))}
-              className="px-3.5 py-1.5 rounded-xl border border-stone-300 dark:border-stone-700 text-xs font-bold text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition disabled:opacity-40"
+              className="px-3.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition disabled:opacity-40 cursor-pointer"
             >
               Next Step
             </button>
           </div>
 
           <button
+            type="button"
             onClick={() => {
               onSelectRole(currentStep.recommendedRole);
               onClose();
             }}
-            className="px-5 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-md transition flex items-center gap-1.5"
+            className="px-5 py-2 rounded-xl bg-slate-900 dark:bg-amber-600 hover:bg-slate-800 dark:hover:bg-amber-500 text-white font-bold text-xs transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
           >
             <span>{currentStep.roleLabel}</span>
             <ArrowRight className="w-3.5 h-3.5" />

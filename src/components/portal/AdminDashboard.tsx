@@ -47,6 +47,7 @@ import {
 } from '../../types';
 import { TransportApprovalQueue } from './TransportApprovalQueue';
 import { TransportOptInPanel } from './TransportOptInPanel';
+import { RbacDirectoryPanel } from './RbacDirectoryPanel';
 import { USER_PROFILES, FEE_ITEMS } from '../../services/storageService';
 import { errorReportingService } from '../../services/errorService';
 import { otpService, OtpRecord } from '../../services/otpService';
@@ -104,6 +105,7 @@ interface AdminDashboardProps {
     allocatedSeat?: string
   ) => void;
   onPayTransportFee?: (requestId: string, method: FeeTransaction['paymentMethod']) => void;
+  onRefreshSession?: () => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -118,6 +120,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   gateLogs,
   feesPaid,
   onResetCredential,
+  onRefreshSession,
   onUnlockAccount,
   failedAttempts,
   lockedUntil,
@@ -289,7 +292,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setIsSendingViaGmail(true);
     setSendErrorMsg(null);
 
-    const senderEmail = googleAuth.user?.email || user.email || 'directorate@tattvasayam.edu.in';
+    const senderEmail = googleAuth.user?.email || user.email || 'info@tattvaswayam.com';
     const recipientEmails = resolvedRecipients.map((r) => r.email);
 
     let gmailResult: SentEmailResult | null = null;
@@ -401,7 +404,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             {user.name} • {user.title}
           </h2>
           <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
-            Institutional Oversight, Executive Approvals & Real-Time Security Telemetry
+            Institutional Oversight, Executive Approvals & Campus Security Logs
           </p>
         </div>
 
@@ -751,7 +754,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   )}
                 </div>
                 <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
-                  Send authentic, cryptographically signed emails directly to verified student & parent academy inboxes via OAuth.
+                  Send official emails directly to verified student & parent academy inboxes via Google Workspace.
                 </p>
               </div>
             </div>
@@ -845,7 +848,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       Sender Identity:
                     </label>
                     <div className="p-2.5 bg-stone-100 dark:bg-stone-800/60 rounded-xl border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 font-mono text-[11px] truncate">
-                      {googleAuth.user?.email || 'directorate@tattvasayam.edu.in'}
+                      {googleAuth.user?.email || 'info@tattvaswayam.com'}
                     </div>
                   </div>
                 </div>
@@ -1319,7 +1322,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </span>
                 </div>
                 <p className="text-xs text-stone-500 dark:text-stone-400">
-                  Authoritative 30-second cryptographic verification tokens for all institutional profiles.
+                  30-second verification codes for all school staff, parent, and student profiles.
                 </p>
               </div>
             </div>
@@ -1443,14 +1446,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       {/* TAB 4: USERS & CREDENTIALS */}
       {activeTab === 'users' && (
-        <div className="p-5 rounded-2xl bg-white dark:bg-stone-900 border border-orange-200 dark:border-amber-950 shadow-xs space-y-4">
-          <div className="border-b border-orange-100 dark:border-stone-800 pb-2 flex items-center justify-between">
-            <h3 className="font-extrabold text-sm text-stone-900 dark:text-stone-100 flex items-center gap-2">
-              <KeyRound className="w-4 h-4 text-orange-600" />
-              <span>Account Credentials & Lockout Oversight</span>
-            </h3>
-            <span className="text-xs text-stone-500">Security Operations</span>
-          </div>
+        <div className="space-y-6">
+          <RbacDirectoryPanel onRoleChanged={onRefreshSession} />
+
+          <div className="p-5 rounded-2xl bg-white dark:bg-stone-900 border border-orange-200 dark:border-amber-950 shadow-xs space-y-4">
+            <div className="border-b border-orange-100 dark:border-stone-800 pb-2 flex items-center justify-between">
+              <h3 className="font-extrabold text-sm text-stone-900 dark:text-stone-100 flex items-center gap-2">
+                <KeyRound className="w-4 h-4 text-orange-600" />
+                <span>Account Credentials &amp; Lockout Oversight</span>
+              </h3>
+              <span className="text-xs text-stone-500">Security Operations</span>
+            </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
             {Object.keys(USER_PROFILES)
@@ -1502,6 +1508,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 );
               })}
           </div>
+          </div>
         </div>
       )}
 
@@ -1515,7 +1522,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
                 <span>Institutional Audit Log</span>
               </h3>
-              <span className="text-[11px] font-mono text-stone-500">Live Telemetry</span>
+              <span className="text-[11px] font-mono text-stone-500">Live Audit Stream</span>
             </div>
 
             <div className="space-y-2 max-h-80 overflow-y-auto text-xs pr-1">

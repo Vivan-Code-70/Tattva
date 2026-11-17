@@ -839,7 +839,7 @@ export const LibrarianDashboard: React.FC<LibrarianDashboardProps> = ({
                 <span>Subject Inventory Breakdown</span>
               </h3>
               <p className="text-xs text-stone-500">
-                Distribution of catalog volumes across Tattvasayam curriculum disciplines
+                Distribution of catalog volumes across Tattvaswayam curriculum disciplines
               </p>
 
               <div className="space-y-2.5 pt-2">
@@ -992,8 +992,8 @@ export const LibrarianDashboard: React.FC<LibrarianDashboardProps> = ({
                 >
                   <option value="vivan">Vivan Sharma (Grade 10-A • TFA-2026-089)</option>
                   <option value="krishvika">Krishvika Patel (Grade 8-B • TFA-2026-104)</option>
-                  <option value="susmita">Ms. Susmita Roy (Facilitator • Physics)</option>
-                  <option value="principal">Dr. B. R. Shenoy (Principal)</option>
+                  <option value="susmita">Ms. Sushmitha (Facilitator • Mathematical Studies)</option>
+                  <option value="principal">Ms. Amrita (Centre Head &amp; Chief Mentor)</option>
                 </select>
               </div>
 

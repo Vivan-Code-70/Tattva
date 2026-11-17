@@ -88,7 +88,7 @@ export const USER_PROFILES: Record<string, UserProfile> = {
     name: 'Vivan',
     role: 'student',
     title: 'Grade 10-A',
-    email: 'vivan.sharma@tattvasayam.edu.in',
+    email: 'vivan.sharma@tattvaswayam.edu.in',
     scores: [99, 98, 97, 98, 100, 96, 95, 100, 94, 99, 96, 98, 99],
     optedSubjects: [
       'Mathematics',
@@ -105,7 +105,7 @@ export const USER_PROFILES: Record<string, UserProfile> = {
     name: 'Krishvika',
     role: 'student',
     title: 'Grade 8-B',
-    email: 'krishvika.patel@tattvasayam.edu.in',
+    email: 'krishvika.patel@tattvaswayam.edu.in',
     scores: [95, 96, 99, 94, 98, 97, 92, 99, 100, 96, 95, 97, 98],
     optedSubjects: [
       'Mathematics',
@@ -120,38 +120,49 @@ export const USER_PROFILES: Record<string, UserProfile> = {
   },
   susmita: {
     id: 'SUSMITA-FAC-10',
-    name: 'Ms. Susmita',
+    name: 'Ms. Sushmitha',
     role: 'teacher',
-    title: 'Senior Faculty, Physics & Mathematics',
-    email: 'susmita.sen@tattvasayam.edu.in',
+    title: 'Facilitator & Mentor, Mathematical Studies',
+    email: 'sushmitha@tattvaswayam.com',
+  },
+  divya: {
+    id: 'DIVYA-FAC-08',
+    name: 'Ms. Divya Dogra',
+    role: 'teacher',
+    roles: ['teacher', 'parent'],
+    title: 'Facilitator of Inclusive Learning & Parent (Grade 8-B)',
+    email: 'divya.dogra@tattvaswayam.com',
+    assignedClasses: ['Grade 8-B'],
+    childrenKeys: ['krishvika'],
+    child: 'krishvika',
   },
   sandhya: {
     id: 'SANDHYA-ADM01',
-    name: 'Ms. Sandhya',
+    name: 'Ms. Sandhya Gatti',
     role: 'admin',
-    title: 'Super Admin, Director of Academics',
-    email: 'sandhya.admin@tattvasayam.edu.in',
+    title: 'Founder & Managing Director',
+    email: 'sandhya.gatti@tattvaswayam.com',
   },
   amrita: {
     id: 'AMRITA-ADM02',
     name: 'Ms. Amrita',
     role: 'admin',
-    title: 'Operations Head',
-    email: 'amrita.ops@tattvasayam.edu.in',
+    title: 'Centre Head & Chief Mentor',
+    email: 'amrita@tattvaswayam.com',
   },
   sai: {
     id: 'SECURITY-GATE02',
     name: 'Mr. Sai',
     role: 'security',
     title: 'Gate 2 Security Officer',
-    email: 'gate2.security@tattvasayam.edu.in',
+    email: 'gate2.security@tattvaswayam.com',
   },
   bharthi: {
     id: 'BHARTHI-SUP03',
-    name: 'Ms. Bharthi',
+    name: 'Ms. Sangeetha',
     role: 'support',
-    title: 'Support Coordinator',
-    email: 'bharthi.support@tattvasayam.edu.in',
+    title: 'Chief Administrator & Coordinator',
+    email: 'info@tattvaswayam.com',
   },
   pvivan: {
     id: 'PARENT-VIVAN01',
@@ -159,7 +170,7 @@ export const USER_PROFILES: Record<string, UserProfile> = {
     role: 'parent',
     title: 'Parent, Grade 10-A',
     child: 'vivan',
-    email: 'parent.vivan@tattvasayam.edu.in',
+    email: 'parent.vivan@tattvaswayam.com',
   },
   pkrishvika: {
     id: 'PARENT-KRISHVIKA01',
@@ -167,23 +178,23 @@ export const USER_PROFILES: Record<string, UserProfile> = {
     role: 'parent',
     title: 'Parent, Grade 8-B',
     child: 'krishvika',
-    email: 'parent.krishvika@tattvasayam.edu.in',
+    email: 'parent.krishvika@tattvaswayam.com',
   },
   principal: {
     id: 'PRINCIPAL-DR-01',
-    name: 'Dr. B. R. Shenoy',
+    name: 'Ms. Amrita',
     role: 'principal',
-    title: 'Principal & Patron of Academic Excellence',
-    phone: '+91 98450 52094',
-    email: 'principal@tattvasayam.edu.in',
+    title: 'Centre Head & Chief Mentor',
+    phone: '+91 76250 03355',
+    email: 'info@tattvaswayam.com',
   },
   librarian: {
     id: 'LIB-SR-01',
     name: 'Ms. Meenakshi Sundaram',
     role: 'librarian',
-    title: 'Chief Academic Librarian & Resource Curator',
+    title: 'TURN Open Library Curator',
     phone: '+91 98450 81294',
-    email: 'meenakshi.lib@tattvasayam.edu.in',
+    email: 'library@tattvaswayam.com',
   },
   driver: {
     id: 'DRIVER-KA04-2026',
@@ -191,7 +202,7 @@ export const USER_PROFILES: Record<string, UserProfile> = {
     role: 'driver',
     title: 'Senior Fleet Pilot • Route 14 Express',
     phone: '+91 98450 44210',
-    email: 'driver.manjunath@tattvasayam.edu.in',
+    email: 'driver.manjunath@tattvaswayam.edu.in',
     hasOptedTransport: true,
     assignedBusRoute: 'Route 14',
   },
@@ -224,6 +235,7 @@ export const DEFAULT_PASSWORDS: Record<string, string> = {
 export const DEFAULT_MPINS: Record<string, string> = {
   principal: '520941',
   susmita: '482913',
+  divya: '718293',
   sai: '735104',
   pvivan: '260814',
   pkrishvika: '917352',
@@ -417,7 +429,7 @@ export const DEFAULT_BOOK_LOANS: BookLoan[] = [
     bookId: 'LIB-BK-104',
     bookTitle: 'Chemistry: Structure and Properties',
     borrowerKey: 'susmita',
-    borrowerName: 'Ms. Susmita (Faculty)',
+    borrowerName: 'Ms. Sushmitha (Faculty)',
     borrowerRole: 'teacher',
     issueDate: '2026-10-12',
     dueDate: '2026-10-26',
@@ -495,7 +507,7 @@ export function generateDefaultAttendanceRecords(): AttendanceRecord[] {
     let vStatus: 'PRESENT' | 'LATE' | 'EXCUSED' | 'ABSENT' = 'PRESENT';
     let vSub = subjectsVivan[i % subjectsVivan.length];
     let vRemarks = 'Present and verified in laboratory';
-    let vMarkedBy = 'Ms. Susmita';
+    let vMarkedBy = 'Ms. Sushmitha';
 
     if (isoDate === '2026-10-14') {
       vStatus = 'LATE';
@@ -506,22 +518,22 @@ export function generateDefaultAttendanceRecords(): AttendanceRecord[] {
       vStatus = 'EXCUSED';
       vSub = 'Mathematics';
       vRemarks = 'Karnataka State STEM Olympiad representation';
-      vMarkedBy = 'Ms. Susmita';
+      vMarkedBy = 'Ms. Sushmitha';
     } else if (isoDate === '2026-10-31') {
       vStatus = 'PRESENT';
       vSub = 'Physics';
       vRemarks = 'On time, active lab participation';
-      vMarkedBy = 'Ms. Susmita';
+      vMarkedBy = 'Ms. Sushmitha';
     } else if (isoDate === '2026-10-30') {
       vStatus = 'PRESENT';
       vSub = 'Mathematics';
       vRemarks = 'Scored 100% on Riemann sums quiz';
-      vMarkedBy = 'Ms. Susmita';
+      vMarkedBy = 'Ms. Sushmitha';
     } else if (isoDate === '2026-10-29') {
       vStatus = 'PRESENT';
       vSub = 'Philosophy';
       vRemarks = 'Debate on Kantian ethics';
-      vMarkedBy = 'Ms. Sandhya';
+      vMarkedBy = 'Ms. Sandhya Gatti';
     }
 
     records.push({
@@ -539,13 +551,13 @@ export function generateDefaultAttendanceRecords(): AttendanceRecord[] {
     let kStatus: 'PRESENT' | 'LATE' | 'EXCUSED' | 'ABSENT' = 'PRESENT';
     let kSub = subjectsKrishvika[i % subjectsKrishvika.length];
     let kRemarks = 'Present in classroom session';
-    let kMarkedBy = 'Ms. Susmita';
+    let kMarkedBy = 'Ms. Sushmitha';
 
     if (isoDate === '2026-10-12') {
       kStatus = 'EXCUSED';
       kSub = 'Biology';
       kRemarks = 'Approved orthodontic consultation';
-      kMarkedBy = 'Ms. Susmita';
+      kMarkedBy = 'Ms. Sushmitha';
     } else if (isoDate === '2026-10-29') {
       kStatus = 'LATE';
       kSub = 'English';
@@ -555,12 +567,12 @@ export function generateDefaultAttendanceRecords(): AttendanceRecord[] {
       kStatus = 'PRESENT';
       kSub = 'Mathematics';
       kRemarks = 'Present in Room 102';
-      kMarkedBy = 'Ms. Susmita';
+      kMarkedBy = 'Ms. Sushmitha';
     } else if (isoDate === '2026-10-30') {
       kStatus = 'PRESENT';
       kSub = 'Biology';
       kRemarks = 'Cell division lab observation';
-      kMarkedBy = 'Ms. Susmita';
+      kMarkedBy = 'Ms. Sushmitha';
     }
 
     records.push({
@@ -598,24 +610,144 @@ export class StorageService {
           subject: 'Physics',
           title: 'Wave equations & harmonic resonance worksheet',
           due: '2026-10-28',
-          by: 'Ms. Susmita',
-          done: { vivan: true },
+          by: 'Ms. Sushmitha',
+          done: { vivan: true, krishvika: true },
         },
         {
           id: 'ASG-102',
-          subject: 'Mathematics',
-          title: 'Calculus optimization and rate of change problem set',
-          due: '2026-10-30',
-          by: 'Ms. Susmita',
-          done: {},
+          subject: 'Physics',
+          title: 'Optics & interference fringe lab writeup',
+          due: '2026-11-02',
+          by: 'Ms. Sushmitha',
+          done: { vivan: true },
         },
         {
           id: 'ASG-103',
+          subject: 'Mathematics',
+          title: 'Calculus optimization and rate of change problem set',
+          due: '2026-10-30',
+          by: 'Ms. Sushmitha',
+          done: { vivan: true, krishvika: true },
+        },
+        {
+          id: 'ASG-104',
+          subject: 'Mathematics',
+          title: 'Eigenvalue & linear transformation matrix drills',
+          due: '2026-11-05',
+          by: 'Ms. Sushmitha',
+          done: {},
+        },
+        {
+          id: 'ASG-105',
+          subject: 'Biology',
+          title: 'Cellular respiration & ATP synthesis pathway diagram',
+          due: '2026-11-03',
+          by: 'Ms. Divya Dogra',
+          done: { vivan: true, krishvika: true },
+        },
+        {
+          id: 'ASG-106',
+          subject: 'Chemistry',
+          title: 'Thermodynamics enthalpy & titration stoichiometry report',
+          due: '2026-11-06',
+          by: 'Mr. Arvind',
+          done: { vivan: true },
+        },
+        {
+          id: 'ASG-107',
+          subject: 'Chemistry',
+          title: 'Organic functional group isomerism synthesis map',
+          due: '2026-11-10',
+          by: 'Mr. Arvind',
+          done: {},
+        },
+        {
+          id: 'ASG-108',
           subject: 'Philosophy',
           title: 'Comparative analysis of virtue ethics and deontological duty',
           due: '2026-11-04',
           by: 'Dr. Raman',
+          done: { vivan: true, krishvika: true },
+        },
+        {
+          id: 'ASG-109',
+          subject: 'English',
+          title: 'Critical discourse essay on modernist narrative structure',
+          due: '2026-11-07',
+          by: 'Ms. Clara',
+          done: { vivan: true, krishvika: true },
+        },
+        {
+          id: 'ASG-110',
+          subject: 'English',
+          title: 'Rhetorical seminar & Shakespearean sonnet annotation',
+          due: '2026-11-12',
+          by: 'Ms. Clara',
+          done: { krishvika: true },
+        },
+        {
+          id: 'ASG-111',
+          subject: 'Business Studies',
+          title: 'Micro-enterprise supply chain & balance sheet case study',
+          due: '2026-11-08',
+          by: 'Mr. Vikram',
+          done: { vivan: true },
+        },
+        {
+          id: 'ASG-112',
+          subject: 'Music',
+          title: 'Carnatic raga improvisation & notation journal',
+          due: '2026-11-09',
+          by: 'Vidwan Suresh',
+          done: { krishvika: true },
+        },
+        {
+          id: 'ASG-113',
+          subject: 'Dance',
+          title: 'Rhythmic tala choreography & posture reflection log',
+          due: '2026-11-11',
+          by: 'Ms. Ananya',
+          done: { krishvika: true },
+        },
+        {
+          id: 'ASG-114',
+          subject: 'Sports',
+          title: 'VO2 max endurance conditioning & agility split log',
+          due: '2026-11-13',
+          by: 'Coach Rakesh',
+          done: { vivan: true, krishvika: true },
+        },
+        {
+          id: 'ASG-115',
+          subject: 'French',
+          title: 'Subjunctive mood composition & oral dialogue script',
+          due: '2026-11-14',
+          by: 'Mme. Sophie',
+          done: { vivan: true },
+        },
+        {
+          id: 'ASG-116',
+          subject: 'French',
+          title: 'Francophone cultural heritage comprehension dossier',
+          due: '2026-11-18',
+          by: 'Mme. Sophie',
           done: {},
+        },
+        {
+          id: 'ASG-117',
+          subject: 'Hindi',
+          title: 'Samvad lekhan & classical kavya interpretation',
+          due: '2026-11-15',
+          by: 'Shri Mishra',
+          done: { krishvika: true },
+        },
+        {
+          id: 'ASG-118',
+          subject: 'Kannada',
+          title: 'Kuvempu sahitya vishleshane & gadya summary',
+          due: '2026-11-16',
+          by: 'Smt. Shilpa',
+          done: { vivan: true },
         },
       ],
       counseling: [
@@ -632,7 +764,7 @@ export class StorageService {
       events: [
         { date: '2026-10-02', title: 'Gandhi Jayanti', type: 'holiday' },
         { date: '2026-10-15', title: 'Mid-term Physics & STEM Exam', type: 'exam' },
-        { date: '2026-10-24', title: 'Neural Science & Arts Expo', type: 'expo' },
+        { date: '2026-10-24', title: 'Annual Science & Arts Expo', type: 'expo' },
         { date: '2026-10-28', title: 'Academic Counseling Day', type: 'counseling' },
         { date: '2026-11-01', title: 'Karnataka Rajyotsava', type: 'holiday' },
         { date: '2026-11-08', title: 'Deepavali Festival of Lights', type: 'holiday' },
@@ -641,7 +773,7 @@ export class StorageService {
       gateLogs: [
         {
           id: 'LOG-1',
-          name: 'Ms. Susmita',
+          name: 'Ms. Sushmitha',
           category: 'Faculty',
           grade: 'Senior Faculty',
           time: '08:05 AM',
@@ -924,7 +1056,7 @@ export class StorageService {
         {
           id: 'AUD-2',
           time: new Date(Date.now() - 3600000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          action: 'Staff member Ms. Susmita authenticated via OTP',
+          action: 'Staff member Ms. Sushmitha authenticated via OTP',
           severity: 'info',
         },
       ],
@@ -932,7 +1064,7 @@ export class StorageService {
         {
           id: 'MAIL-1',
           to: 'All students',
-          subject: 'Annual Neural Science & Arts Expo registration deadline',
+          subject: 'Annual Science & Arts Expo registration deadline',
           body: 'All teams participating in robotics, computational physics, and classical dance installations must register projects by Friday 5 PM.',
           time: '09:00 AM',
         },
@@ -946,32 +1078,32 @@ export class StorageService {
       notices: [
         {
           id: 'NTC-101',
-          title: 'Term 2 CBSE & International Baccalaureate Summative Assessment Blueprint',
+          title: 'Term 2 CBSE, Cambridge & NIOS Inquiry Assessment Blueprint',
           category: 'Academic',
           date: '2026-10-28',
-          content: 'Detailed 12-subject practical laboratory schedules, oral examinations in French/Hindi/Kannada, and computational mathematics rubrics are now finalized. All students must verify hall attendance credentials.',
+          content: 'Detailed laboratory schedules, oral reflections in French/Hindi/Kannada, and Mathematical Studies rubrics across Inizio–Adroit cohorts are now finalized. All learners may review timetable credentials.',
           targetRoles: ['all'],
           acknowledgedBy: ['vivan', 'susmita', 'pvivan'],
           priority: 'high',
-          author: 'Dr. B. R. Shenoy (Principal)',
+          author: 'Ms. Amrita (Centre Head & Chief Mentor)',
         },
         {
           id: 'NTC-102',
-          title: 'Annual Inter-School Robotics & Neural AI Science Expo (Jakkur Campus)',
+          title: 'Annual Science, Wander & Wonder & Swayam Vichar Manch Forum (Jakkur Campus)',
           category: 'Event',
           date: '2026-10-29',
-          content: 'The Open Learning Resource Centre will host 36 school delegations on November 14. Projects exploring bio-mimicry, renewable clean grids, and sacred geometry simulations will present at the Central Hologram Amphitheatre.',
+          content: 'The Open Learning Resource Centre (#2060, Sampigehalli) will host inter-school inquiry dialogues on November 14 featuring Swayam Young Farmers sustainability models, TURN reading showcases, and projects at the Amphitheatre.',
           targetRoles: ['student', 'teacher', 'parent'],
           acknowledgedBy: ['vivan'],
           priority: 'normal',
-          author: 'Ms. Susmita (Faculty Lead)',
+          author: 'Ms. Sushmitha (Mathematics Facilitator)',
         },
         {
           id: 'NTC-103',
-          title: 'North Bengaluru Fleet Route 14 Optimization Notice',
+          title: 'North Bengaluru School Bus Route 14 Schedule Update',
           category: 'Advisory',
           date: '2026-10-30',
-          content: 'Due to arterial road maintenance near Jakkur Aerodrome cross, Bus Route 14 will operate 10 minutes earlier on the morning circuit. Live real-time GPS telemetry is active in the Parent portal.',
+          content: 'Due to road maintenance near Jakkur Aerodrome cross, Bus Route 14 will operate 10 minutes earlier on the morning circuit. Live GPS bus tracking is active in the Parent portal.',
           targetRoles: ['parent', 'student', 'security'],
           acknowledgedBy: ['pvivan', 'pkrishvika', 'sai'],
           priority: 'urgent',
@@ -979,14 +1111,14 @@ export class StorageService {
         },
         {
           id: 'NTC-104',
-          title: 'Patron Directive: First-Principles Inquiry & Zero-Rote Pedagogy',
+          title: 'Founder & Centre Head Directive: Co-Creators of Knowledge & Zero-Rote Pedagogy',
           category: 'Circular',
           date: '2026-10-31',
-          content: 'All faculty departments must maintain 100% interactive lab time allocation and engage students through analytical problem solving. Rote memorization is replaced by experimental verification across all 13 syllabus subjects.',
+          content: 'All mentors across Inizio, Novitiate, Mezzo, and Adroit stages must prioritize inquiry, Out-of-Syllabus life skills, and hands-on verification. Rote memorization is replaced by collaborative discovery across all 13 disciplines.',
           targetRoles: ['teacher', 'admin', 'principal'],
           acknowledgedBy: ['susmita', 'sandhya', 'amrita'],
           priority: 'high',
-          author: 'Office of the Principal',
+          author: 'Ms. Sandhya Gatti (Founder & MD) & Ms. Amrita',
         },
       ],
       attendanceRecords: generateDefaultAttendanceRecords(),
@@ -1011,6 +1143,10 @@ export class StorageService {
         delayMinutes: 0,
         isLocationSharingActive: true,
         locationSharingStartedAt: '07:15 AM',
+        dutyStatus: 'ON_DUTY',
+        geofenceStatus: 'INSIDE_CORRIDOR',
+        geofenceDistanceMeters: 18,
+        isSimulatedOffRoute: false,
         telemetry: {
           speedKmH: 34,
           headingDeg: 142,
@@ -1059,7 +1195,7 @@ export class StorageService {
             students: [
               { id: 'st-3', name: 'Meera Sen', grade: 'Grade 9-B', category: 'student', userKey: 'meera', stopId: 2, stopName: 'Judicial Layout', status: 'boarded', boardedTime: '07:36 AM', seatNumber: '6A', parentKey: 'pmeera', parentName: 'Mr. P. Sen', parentPhone: '+91 98450 11202', optedTransport: true, transportFeePaid: true },
               { id: 'st-4', name: 'Kabir Joshi', grade: 'Grade 7-A', category: 'student', userKey: 'kabir', stopId: 2, stopName: 'Judicial Layout', status: 'boarded', boardedTime: '07:36 AM', seatNumber: '6B', parentKey: 'pkabir', parentName: 'Mrs. S. Joshi', parentPhone: '+91 98450 11203', optedTransport: true, transportFeePaid: false },
-              { id: 'st-fac-1', name: 'Ms. Susmita Sen', grade: 'Faculty (Physics & Math)', category: 'teacher', department: 'Senior Physics Dept', userKey: 'susmita', stopId: 2, stopName: 'Judicial Layout', status: 'boarded', boardedTime: '07:36 AM', seatNumber: '1A', parentName: 'Self (Faculty)', parentPhone: '+91 98450 48291', optedTransport: true, transportFeePaid: true },
+              { id: 'st-fac-1', name: 'Ms. Sushmitha', grade: 'Facilitator (Mathematical Studies)', category: 'teacher', department: 'Mathematical Studies', userKey: 'susmita', stopId: 2, stopName: 'Judicial Layout', status: 'boarded', boardedTime: '07:36 AM', seatNumber: '1A', parentName: 'Self (Faculty)', parentPhone: '+91 98450 48291', optedTransport: true, transportFeePaid: true },
             ],
           },
           {
@@ -1077,7 +1213,7 @@ export class StorageService {
             students: [
               { id: 'st-5', name: 'Krishvika', grade: 'Grade 8-B', category: 'student', userKey: 'krishvika', stopId: 3, stopName: 'Sahakar Nagar', status: 'waiting', seatNumber: '8A', parentKey: 'pkrishvika', parentName: 'Mr. K. Narayanan', parentPhone: '+91 98450 11204', optedTransport: true, transportFeePaid: false },
               { id: 'st-6', name: 'Rohan Iyer', grade: 'Grade 10-B', category: 'student', userKey: 'rohan', stopId: 3, stopName: 'Sahakar Nagar', status: 'waiting', seatNumber: '8B', parentKey: 'prohan', parentName: 'Mrs. V. Iyer', parentPhone: '+91 98450 11205', optedTransport: true, transportFeePaid: true },
-              { id: 'st-stf-1', name: 'Ms. Bharthi', grade: 'Coordinator (Timetables & Support)', category: 'staff', department: 'Academic Operations', userKey: 'bharthi', stopId: 3, stopName: 'Sahakar Nagar', status: 'waiting', seatNumber: '2A', parentName: 'Self (Staff)', parentPhone: '+91 98450 39182', optedTransport: true, transportFeePaid: false },
+              { id: 'st-stf-1', name: 'Ms. Sangeetha', grade: 'Chief Administrator', category: 'staff', department: 'Administration', userKey: 'bharthi', stopId: 3, stopName: 'Sahakar Nagar', status: 'waiting', seatNumber: '2A', parentName: 'Self (Staff)', parentPhone: '+91 98450 39182', optedTransport: true, transportFeePaid: false },
             ],
           },
           {
@@ -1096,15 +1232,15 @@ export class StorageService {
               { id: 'st-7', name: 'Vivan', grade: 'Grade 10-A', category: 'student', userKey: 'vivan', stopId: 4, stopName: 'Amruthahalli Signal', status: 'waiting', seatNumber: '12A', parentKey: 'pvivan', parentName: 'Mr. Rajesh & Mrs. Sunita', parentPhone: '+91 98450 99881', optedTransport: true, transportFeePaid: true },
               { id: 'st-8', name: 'Arjun Verma', grade: 'Grade 10-A', category: 'student', stopId: 4, stopName: 'Amruthahalli Signal', status: 'waiting', seatNumber: '12B', parentKey: 'parjun', parentName: 'Mr. D. Verma', parentPhone: '+91 98450 99882', optedTransport: true, transportFeePaid: true },
               { id: 'st-stf-2', name: 'Mr. Sai', grade: 'Gate 2 Security Officer', category: 'staff', department: 'Campus Security', userKey: 'sai', stopId: 4, stopName: 'Amruthahalli Signal', status: 'waiting', seatNumber: '3B', parentName: 'Self (Staff)', parentPhone: '+91 98450 73510', optedTransport: true, transportFeePaid: true },
-              { id: 'st-adm-1', name: 'Ms. Amrita', grade: 'Operations & Transport Lead', category: 'admin', department: 'Administration', userKey: 'amrita', stopId: 4, stopName: 'Amruthahalli Signal', status: 'waiting', seatNumber: '2B', parentName: 'Self (Admin)', parentPhone: '+91 98450 15839', optedTransport: true, transportFeePaid: true },
+              { id: 'st-adm-1', name: 'Ms. Amrita', grade: 'Centre Head & Chief Mentor', category: 'admin', department: 'Leadership Desk', userKey: 'amrita', stopId: 4, stopName: 'Amruthahalli Signal', status: 'waiting', seatNumber: '2B', parentName: 'Self (Admin)', parentPhone: '+91 98450 15839', optedTransport: true, transportFeePaid: true },
               { id: 'st-9', name: 'Tanya Pillai', grade: 'Grade 8-A', category: 'student', stopId: 4, stopName: 'Amruthahalli Signal', status: 'absent', seatNumber: '14A', parentKey: 'ptanya', parentName: 'Mr. R. Pillai', parentPhone: '+91 98450 99883', optedTransport: true, transportFeePaid: true },
             ],
           },
           {
             id: 5,
-            name: 'Tattvasayam Future Academy, Gate 2',
+            name: 'Tattvaswayam Open Learning & Future Academy, Gate 2',
             shortName: 'Campus Gate 2 Turnstile',
-            landmark: 'Jakkur Plantation Road • Gate 2 Drop Zone & RFID Turnstile',
+            landmark: '#2060, Sampigehalli, Jakkur • Gate 2 Drop Zone & Turnstile',
             lat: 13.0694,
             lng: 77.6186,
             timeScheduled: '08:18 AM',
@@ -1135,7 +1271,7 @@ export class StorageService {
         {
           id: 'TR-OPT-102',
           userKey: 'susmita',
-          userName: 'Ms. Susmita Sen',
+          userName: 'Ms. Sushmitha',
           userRole: 'teacher',
           routeNumber: 'Route 14',
           stopId: 2,
@@ -1202,7 +1338,7 @@ export class StorageService {
         {
           id: 'TR-OPT-106',
           userKey: 'bharthi',
-          userName: 'Ms. Bharthi',
+          userName: 'Ms. Sangeetha',
           userRole: 'support',
           routeNumber: 'Route 14',
           stopId: 3,
@@ -1285,7 +1421,7 @@ export class StorageService {
         {
           id: 'TR-OPT-111',
           userKey: 'sandhya',
-          userName: 'Ms. Sandhya',
+          userName: 'Ms. Sandhya Gatti',
           userRole: 'admin',
           routeNumber: 'Route 14',
           stopId: 1,
@@ -1342,13 +1478,34 @@ export class StorageService {
       if (!raw) return this.defaultState();
       const parsed = JSON.parse(raw);
       const def = this.defaultState();
+      const rawBusRoute = (parsed.busRoute && parsed.busRoute.stops && parsed.busRoute.stops[0]?.lat) ? parsed.busRoute : def.busRoute;
+      const normalizedBusRoute = {
+        ...rawBusRoute,
+        stops: rawBusRoute.stops.map((stop: any) => ({
+          ...stop,
+          name: typeof stop.name === 'string' ? stop.name.replace(/Tattvasayam/g, 'Tattvaswayam') : stop.name,
+        })),
+      };
+      const existingAssignments: Assignment[] = Array.isArray(parsed.assignments) ? parsed.assignments : [];
+      const mergedAssignments: Assignment[] = existingAssignments.length >= 13
+        ? existingAssignments
+        : [
+            ...existingAssignments,
+            ...def.assignments.filter(
+              (dAsg) =>
+                !existingAssignments.some(
+                  (eAsg) => eAsg.id === dAsg.id || (eAsg.subject === dAsg.subject && eAsg.title === dAsg.title)
+                )
+            ),
+          ];
       return {
         ...def,
         ...parsed,
+        assignments: mergedAssignments,
         timetables: parsed.timetables || def.timetables,
         notices: parsed.notices && parsed.notices.length > 0 ? parsed.notices : def.notices,
         attendanceRecords: parsed.attendanceRecords && parsed.attendanceRecords.length >= 20 ? parsed.attendanceRecords : def.attendanceRecords,
-        busRoute: (parsed.busRoute && parsed.busRoute.stops && parsed.busRoute.stops[0]?.lat) ? parsed.busRoute : def.busRoute,
+        busRoute: normalizedBusRoute,
         feeTransactions: parsed.feeTransactions || def.feeTransactions,
         pendingNfcTaps: Array.isArray(parsed.pendingNfcTaps) && parsed.pendingNfcTaps.length > 0 ? parsed.pendingNfcTaps : def.pendingNfcTaps,
         emergencyLockdown: parsed.emergencyLockdown || def.emergencyLockdown,

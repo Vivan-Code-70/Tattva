@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Calendar as CalendarIcon,
   RefreshCw,
@@ -57,17 +57,20 @@ export const GoogleCalendarSync: React.FC<GoogleCalendarSyncProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [pushSuccessCount, setPushSuccessCount] = useState<number | null>(null);
 
+  const onGoogleEventsUpdatedRef = useRef(onGoogleEventsUpdated);
+  onGoogleEventsUpdatedRef.current = onGoogleEventsUpdated;
+
   // Subscribe to auth state updates
   useEffect(() => {
     const unsubscribe = subscribeGoogleAuth((status) => {
       setAuthStatus(status);
       if (!status.hasToken) {
-        setFetchedEvents([]);
-        onGoogleEventsUpdated([]);
+        setFetchedEvents((prev) => (prev.length === 0 ? prev : []));
+        onGoogleEventsUpdatedRef.current([]);
       }
     });
     return () => unsubscribe();
-  }, [onGoogleEventsUpdated]);
+  }, []);
 
   const handleSignIn = async () => {
     setIsLoading(true);
@@ -146,7 +149,7 @@ export const GoogleCalendarSync: React.FC<GoogleCalendarSyncProps> = ({
       for (const ev of upcoming) {
         await createGoogleCalendarEvent({
           summary: `[TFA] ${ev.title}`,
-          description: ev.description || `Category: ${ev.type} • Tattvasayam Future Academy institutional schedule`,
+          description: ev.description || `Category: ${ev.type} • Tattvaswayam Future Academy institutional schedule`,
           date: ev.date,
           isAllDay: true,
         });

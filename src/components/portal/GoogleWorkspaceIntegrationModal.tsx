@@ -62,7 +62,7 @@ export const GoogleWorkspaceIntegrationModal: React.FC<GoogleWorkspaceIntegratio
     return currentUser?.email || 'rubikscubedailynews@gmail.com';
   });
   const [emailSubject, setEmailSubject] = useState<string>(
-    'Tattvasayam Future Academy - Weekly Campus Attendance Trend Report (Nov 2026)'
+    'Tattvaswayam Future Academy - Weekly Campus Attendance Trend Report (Nov 2026)'
   );
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [sentResult, setSentResult] = useState<SentEmailResult | null>(null);
@@ -118,7 +118,7 @@ export const GoogleWorkspaceIntegrationModal: React.FC<GoogleWorkspaceIntegratio
     setErrorMsg(null);
     try {
       const result = await GoogleSheetsService.createAttendanceSpreadsheet(
-        `Tattvasayam Academy - Weekly Attendance Trend (${dataset.dateRange})`,
+        `Tattvaswayam Academy - Weekly Attendance Trend (${dataset.dateRange})`,
         dailyData,
         {
           avgOverall: Math.round(avgTurnout * 100) / 100,
@@ -401,7 +401,7 @@ export const GoogleWorkspaceIntegrationModal: React.FC<GoogleWorkspaceIntegratio
                   type="email"
                   value={recipientEmail}
                   onChange={(e) => setRecipientEmail(e.target.value)}
-                  placeholder="parent@example.com or admin@tattvasayam.edu"
+                  placeholder="parent@example.com or info@tattvaswayam.com"
                   className="w-full px-3 py-2 rounded-xl text-xs border border-orange-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-orange-500 font-mono"
                 />
               </div>

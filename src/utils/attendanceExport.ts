@@ -244,7 +244,7 @@ export function exportDailyAttendanceTrendCSV(
 
   const lines: string[] = [
     '# ==========================================================================',
-    '# TATTVASAYAM FUTURE ACADEMY - DAILY CAMPUS ATTENDANCE TREND AUDIT REPORT',
+    '# TATTVASWAYAM FUTURE ACADEMY - DAILY CAMPUS ATTENDANCE TREND AUDIT REPORT',
     '# ==========================================================================',
     `# Academic Term: ${targetDataset.term}`,
     `# Date Range: ${targetDataset.dateRange} (${targetDataset.label})`,
@@ -305,10 +305,10 @@ export function exportDailyAttendanceTrendCSV(
   lines.push(`Peak Attendance Day,${peakDay.day} (${peakDay.overallAttendance.toFixed(1)}%),-,Weekly High Watermark`);
   lines.push('Institutional Classification,EXEMPLARY - CATEGORY A1,-,Verified by Registrar Office');
   lines.push('# --------------------------------------------------------------------------');
-  lines.push('# End of Certified Report - Tattvasayam Future Academy');
+  lines.push('# End of Certified Report - Tattvaswayam Future Academy');
 
   const content = lines.join('\n');
-  const filename = `tattvasayam-daily-attendance-trend-${targetDataset.id}.csv`;
+  const filename = `tattvaswayam-daily-attendance-trend-${targetDataset.id}.csv`;
 
   StorageService.downloadText(filename, content, 'text/csv;charset=utf-8;');
   return filename;

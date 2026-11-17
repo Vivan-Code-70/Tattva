@@ -18,6 +18,7 @@ import {
   XCircle,
   Clock3,
   Bus,
+  Download,
 } from 'lucide-react';
 import {
   UserProfile,
@@ -41,6 +42,7 @@ import {
 import { AiService } from '../../services/aiService';
 import { WeeklyAttendanceTrendChart } from './WeeklyAttendanceTrendChart';
 import { TransportOptInPanel } from './TransportOptInPanel';
+import { exportTeacherDashboardPdf } from '../../utils/dashboardPdfExport';
 
 interface TeacherDashboardProps {
   user: UserProfile;
@@ -91,6 +93,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     krishvika: 'present',
   });
   const [attendanceSavedToast, setAttendanceSavedToast] = useState<string | null>(null);
+  const [pdfExportNotice, setPdfExportNotice] = useState<string | null>(null);
 
   // Assignment publish form
   const [newSubject, setNewSubject] = useState(SUBJECTS[1]); // Physics
@@ -153,16 +156,44 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     };
   });
 
-  // Today's classes for Ms. Susmita Roy
+  // Today's classes for Ms. Sushmitha
   const todaysClasses = [
-    { period: 'Period 2', time: '09:15 AM - 10:00 AM', subject: 'Advanced Physics', class: 'Grade 10-A', room: 'Room 204 (Quantum Lab)' },
+    { period: 'Period 2', time: '09:15 AM - 10:00 AM', subject: 'Advanced Physics', class: 'Grade 10-A', room: 'Room 204 (Applied Physics Lab)' },
     { period: 'Period 4', time: '10:55 AM - 11:40 AM', subject: 'Applied Mathematics', class: 'Grade 10-A', room: 'Room 102' },
     { period: 'Period 6', time: '01:10 PM - 01:55 PM', subject: 'General Science Workshop', class: 'Grade 8-B', room: 'Discovery Lab 1' },
     { period: 'Period 8', time: '02:45 PM - 03:30 PM', subject: 'Physics Peer Mentoring', class: 'Grade 10-A & 8-B', room: 'Room 204' },
   ];
 
+  const handleExportTeacherPdf = () => {
+    const fileName = exportTeacherDashboardPdf({
+      user,
+      facultyClass,
+      assignments,
+      classMastery,
+      todaysClasses,
+      localAttendance,
+      attendanceRecords,
+      quizResults,
+      aiLogs,
+    });
+    setPdfExportNotice(`Exported dashboard report as ${fileName}`);
+    setTimeout(() => setPdfExportNotice(null), 4000);
+  };
+
   return (
     <div className="space-y-6">
+      {pdfExportNotice && (
+        <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 rounded-xl text-xs flex items-center justify-between">
+          <span className="font-semibold">{pdfExportNotice}</span>
+          <button
+            onClick={() => setPdfExportNotice(null)}
+            className="text-emerald-700 dark:text-emerald-300 hover:underline font-bold"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Top Welcome Ribbon */}
       <div className="p-5 rounded-2xl bg-white dark:bg-stone-900 border border-orange-200 dark:border-amber-950 shadow-xs flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -177,7 +208,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="p-3 bg-orange-50 dark:bg-stone-800 rounded-xl border border-orange-200 dark:border-stone-700 text-center">
             <span className="text-[10px] text-stone-500 block">Class Cohort Size</span>
             <span className="text-base font-extrabold text-orange-600 dark:text-orange-400 font-mono">
@@ -190,6 +221,13 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               {assignments.length} Active
             </span>
           </div>
+          <button
+            onClick={handleExportTeacherPdf}
+            className="px-4 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold shadow-xs flex items-center gap-2 transition cursor-pointer"
+          >
+            <Download className="w-4 h-4" />
+            <span>Export Dashboard PDF</span>
+          </button>
         </div>
       </div>
 

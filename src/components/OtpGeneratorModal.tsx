@@ -118,7 +118,7 @@ export const OtpGeneratorModal: React.FC<OtpGeneratorModalProps> = ({
             </div>
             <div>
               <h3 className="font-extrabold text-sm sm:text-base leading-tight">
-                Tattvasayam 30s TOTP Viewer
+                Tattvaswayam 30s TOTP Viewer
               </h3>
               <p className="text-[11px] text-orange-100 flex items-center gap-1 mt-0.5">
                 <ShieldCheck className="w-3.5 h-3.5" />
@@ -146,9 +146,9 @@ export const OtpGeneratorModal: React.FC<OtpGeneratorModalProps> = ({
               {[
                 { key: 'vivan', label: 'Vivan', role: 'Student 10-A' },
                 { key: 'krishvika', label: 'Krishvika', role: 'Student 8-B' },
-                { key: 'susmita', label: 'Ms. Susmita', role: 'Faculty' },
-                { key: 'bharthi', label: 'Ms. Bharthi', role: 'Coordinator' },
-                { key: 'sandhya', label: 'Ms. Sandhya', role: 'Super Admin' },
+                { key: 'susmita', label: 'Ms. Sushmitha', role: 'Faculty' },
+                { key: 'bharthi', label: 'Ms. Sangeetha', role: 'Chief Admin' },
+                { key: 'sandhya', label: 'Ms. Sandhya Gatti', role: 'Founder / Admin' },
                 { key: 'sai', label: 'Mr. Sai', role: 'Gate Staff' },
                 { key: 'pvivan', label: 'Parent Vivan', role: 'Parent' },
                 { key: 'pkrishvika', label: 'Parent Krish', role: 'Parent' },

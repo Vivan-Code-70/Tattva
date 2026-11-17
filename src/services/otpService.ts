@@ -26,43 +26,43 @@ const USER_CONTACTS: Record<
   vivan: {
     name: 'Vivan (Grade 10-A)',
     phone: '+91 98450 12026',
-    email: 'vivan.2026@tattvasayam.edu.in',
+    email: 'vivan.2026@tattvaswayam.edu.in',
     secret: 'TATTVAVIVANXX222',
   },
   krishvika: {
     name: 'Krishvika (Grade 8-B)',
     phone: '+91 98450 22026',
-    email: 'krishvika.2026@tattvasayam.edu.in',
+    email: 'krishvika.2026@tattvaswayam.edu.in',
     secret: 'TATTVAKRISHVII22',
   },
   susmita: {
-    name: 'Ms. Susmita (Faculty)',
+    name: 'Ms. Sushmitha (Mathematics Facilitator)',
     phone: '+91 98450 34829',
-    email: 'susmita.fac@tattvasayam.edu.in',
+    email: 'sushmitha@tattvaswayam.com',
     secret: 'TATTVASUSMITAFAC',
   },
   sandhya: {
-    name: 'Ms. Sandhya (Super Admin)',
+    name: 'Ms. Sandhya Gatti (Founder & MD)',
     phone: '+91 98450 60428',
-    email: 'sandhya.adm@tattvasayam.edu.in',
+    email: 'sandhya.gatti@tattvaswayam.com',
     secret: 'TATTVASANDHYAADM',
   },
   amrita: {
-    name: 'Ms. Amrita (Operations)',
+    name: 'Ms. Amrita (Centre Head)',
     phone: '+91 98450 15839',
-    email: 'amrita.adm@tattvasayam.edu.in',
+    email: 'amrita@tattvaswayam.com',
     secret: 'TATTVAMRITAOPS22',
   },
   sai: {
     name: 'Mr. Sai (Gate Security)',
     phone: '+91 98450 73510',
-    email: 'sai.security@tattvasayam.edu.in',
+    email: 'sai.security@tattvaswayam.com',
     secret: 'TATTVASAIGATE222',
   },
   bharthi: {
-    name: 'Ms. Bharthi (Coordinator)',
+    name: 'Ms. Sangeetha (Chief Administrator)',
     phone: '+91 98450 39182',
-    email: 'bharthi.sup@tattvasayam.edu.in',
+    email: 'admissions@tattvaswayam.com',
     secret: 'TATTVABHARTHISUP',
   },
   pvivan: {
@@ -78,16 +78,28 @@ const USER_CONTACTS: Record<
     secret: 'TATTVAPARENTKRI2',
   },
   principal: {
-    name: 'Dr. B. R. Shenoy (Principal)',
-    phone: '+91 98450 52094',
-    email: 'principal@tattvasayam.edu.in',
+    name: 'Ms. Amrita (Centre Head & Chief Mentor)',
+    phone: '+91 76250 03355',
+    email: 'info@tattvaswayam.com',
     secret: 'TATTVAPRINCIP22',
   },
   librarian: {
-    name: 'Ms. Meenakshi (Librarian)',
+    name: 'Ms. Meenakshi (TURN Library Curator)',
     phone: '+91 98450 81294',
-    email: 'meenakshi.lib@tattvasayam.edu.in',
+    email: 'library@tattvaswayam.com',
     secret: 'TATTVAMEENAKSHI2',
+  },
+  divya: {
+    name: 'Ms. Divya Dogra (Facilitator & Parent)',
+    phone: '+91 98450 55102',
+    email: 'divya.dogra@tattvaswayam.com',
+    secret: 'TATTVADIVYAFAC22',
+  },
+  driver: {
+    name: 'Mr. Manjunath Gowda (Bus Driver)',
+    phone: '+91 98450 44210',
+    email: 'driver.manjunath@tattvaswayam.edu.in',
+    secret: 'TATTVAVIVANXX222',
   },
 };
 
@@ -276,7 +288,7 @@ class OtpService {
     return {
       name: key,
       phone: '+91 98450 ' + Math.floor(10000 + Math.random() * 90000),
-      email: `${key.replace(/[^a-z0-9]/g, '')}@tattvasayam.edu.in`,
+      email: `${key.replace(/[^a-z0-9]/g, '')}@tattvaswayam.edu.in`,
       secret: 'TATTVAVIVANXX222',
     };
   }
@@ -311,9 +323,9 @@ class OtpService {
     const windowStart = Math.floor(Date.now() / (this.defaultDurationSeconds * 1000)) * (this.defaultDurationSeconds * 1000);
     const expiresAt = windowStart + this.defaultDurationSeconds * 1000;
 
-    const totpUri = `otpauth://totp/Tattvasayam:${encodeURIComponent(
+    const totpUri = `otpauth://totp/Tattvaswayam:${encodeURIComponent(
       contact.name
-    )}?secret=${contact.secret}&issuer=Tattvasayam&digits=6&period=30`;
+    )}?secret=${contact.secret}&issuer=Tattvaswayam&digits=6&period=30`;
 
     return {
       userId: key,

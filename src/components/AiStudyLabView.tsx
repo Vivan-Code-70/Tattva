@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sparkles,
   BookOpen,
@@ -18,6 +18,8 @@ import {
   GraduationCap,
   ChevronRight,
   Filter,
+  ClipboardList,
+  Plus,
 } from 'lucide-react';
 import {
   UserProfile,
@@ -28,6 +30,8 @@ import {
 } from '../types';
 import { SUBJECTS } from '../services/storageService';
 import { AiService } from '../services/aiService';
+import { AuthService, ApiAccessError } from '../services/authService';
+import { AccessDeniedView } from './AccessDeniedView';
 
 interface AiStudyLabViewProps {
   currentUser: UserProfile | null;
@@ -36,6 +40,7 @@ interface AiStudyLabViewProps {
   aiLogs: AiLogItem[];
   onRecordAiLog?: (subject: string, question: string, answer: string) => void;
   onNavigateToPortal?: () => void;
+  onNavigateHome?: () => void;
 }
 
 // Curated high-yield syllabus inquiry prompts for the 13 subjects
@@ -138,9 +143,57 @@ export const AiStudyLabView: React.FC<AiStudyLabViewProps> = ({
   aiLogs,
   onRecordAiLog,
   onNavigateToPortal,
+  onNavigateHome,
 }) => {
   // Page mode: 'all' (Dual View), 'study' (Assistant Only), or 'quiz' (Quiz Only)
   const [viewMode, setViewMode] = useState<'all' | 'study' | 'quiz'>('all');
+
+  // ---------------- Scoped Homework RBAC State ----------------
+  const [scopedHomework, setScopedHomework] = useState<any[]>([]);
+  const [canManageHomework, setCanManageHomework] = useState(false);
+  const [assignedClasses, setAssignedClasses] = useState<string[]>([]);
+  const [loadingAccess, setLoadingAccess] = useState(true);
+  const [accessError, setAccessError] = useState<{ status: number; message: string } | null>(null);
+  const [hwSubject, setHwSubject] = useState<SubjectName>('Mathematics');
+  const [hwTitle, setHwTitle] = useState('');
+  const [hwDue, setHwDue] = useState('2026-11-18');
+  const [hwClass, setHwClass] = useState('Grade 10-A');
+  const [hwFeedback, setHwFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    if (!currentUser) {
+      setLoadingAccess(false);
+      return;
+    }
+
+    setLoadingAccess(true);
+    setAccessError(null);
+    AuthService.fetchHomework()
+      .then((res) => {
+        if (!active) return;
+        setScopedHomework(res.assignments || []);
+        setCanManageHomework(Boolean(res.canManage));
+        const classes = res.assignedClasses || [];
+        setAssignedClasses(classes);
+        if (classes.length > 0) setHwClass(classes[0]);
+      })
+      .catch((err: unknown) => {
+        if (!active) return;
+        if (err instanceof ApiAccessError) {
+          setAccessError({ status: err.status, message: err.message });
+        } else {
+          setAccessError({ status: 403, message: 'Access denied to Homework.' });
+        }
+      })
+      .finally(() => {
+        if (active) setLoadingAccess(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [currentUser?.id, currentUser?.role, currentUser?.roles?.join(',')]);
 
   // ---------------- Study Assistant State ----------------
   const [studySubject, setStudySubject] = useState<SubjectName>('Physics');
@@ -173,7 +226,39 @@ export const AiStudyLabView: React.FC<AiStudyLabViewProps> = ({
   const [quizRecorded, setQuizRecorded] = useState(false);
 
   // Filter subject-specific inquiries
-  const studentKey = currentUser ? currentUser.id.toLowerCase() : 'student';
+  const studentKey = currentUser
+    ? currentUser.linkedStudentKey || currentUser.childrenKeys?.[0] || currentUser.id.toLowerCase()
+    : 'student';
+
+  const handleCreateHomework = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!hwTitle.trim()) return;
+    setHwFeedback(null);
+    try {
+      const res = await AuthService.createHomework({
+        subject: hwSubject,
+        title: hwTitle.trim(),
+        due: hwDue,
+        classGrade: hwClass,
+      });
+      setScopedHomework((prev) => [res.assignment, ...prev]);
+      setHwTitle('');
+      setHwFeedback(`Published homework for ${res.assignment.classGrade}.`);
+    } catch (err: any) {
+      setHwFeedback(err?.message || 'Unable to publish homework.');
+    }
+  };
+
+  const handleToggleHw = async (assignmentId: string) => {
+    try {
+      const res = await AuthService.toggleHomework(assignmentId, studentKey);
+      setScopedHomework((prev) =>
+        prev.map((a) => (a.id === assignmentId ? res.assignment : a))
+      );
+    } catch (err: any) {
+      setHwFeedback(err?.message || 'Cannot update homework status.');
+    }
+  };
 
   // ---------------- Handlers: Study Assistant ----------------
   const handleAskStudyAssistant = async (queryText?: string) => {
@@ -288,8 +373,151 @@ export const AiStudyLabView: React.FC<AiStudyLabViewProps> = ({
   const activeSyllabusPrompts = SYLLABUS_PROMPTS[studySubject] || [];
   const activeSuggestedTopics = SUGGESTED_QUIZ_TOPICS[quizSubject] || [];
 
+  if (!currentUser) {
+    return (
+      <AccessDeniedView
+        title="Sign In Required for Homework & Study"
+        message="Homework assignments and guided study tools are restricted to registered students, parents, facilitators, and academic staff."
+        statusCode={401}
+        onNavigateHome={onNavigateHome || (() => {})}
+        onNavigateLogin={onNavigateToPortal}
+        showLoginAction
+      />
+    );
+  }
+
+  if (loadingAccess) {
+    return (
+      <div className="p-8 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 text-center space-y-2">
+        <div className="w-6 h-6 border-2 border-[#B45309] border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-xs font-medium text-stone-500 dark:text-stone-400">
+          Verifying class scope and loading homework assignments…
+        </p>
+      </div>
+    );
+  }
+
+  if (accessError) {
+    return (
+      <AccessDeniedView
+        title="Homework Access Denied"
+        message={accessError.message}
+        statusCode={accessError.status}
+        onNavigateHome={onNavigateHome || (() => {})}
+        onNavigateLogin={onNavigateToPortal}
+      />
+    );
+  }
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-12">
+      {/* Scoped Homework Assignments Panel */}
+      <div className="bg-white dark:bg-stone-900 rounded-3xl p-6 border border-orange-200/80 dark:border-stone-800 shadow-xs space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 dark:border-stone-800 pb-3">
+          <div className="flex items-center gap-2">
+            <ClipboardList className="w-5 h-5 text-orange-600" />
+            <div>
+              <h2 className="text-base font-bold text-stone-900 dark:text-stone-100">
+                Scoped Class Homework &amp; Assignments ({scopedHomework.length})
+              </h2>
+              <p className="text-xs text-stone-500 dark:text-stone-400">
+                {assignedClasses.length > 0
+                  ? `Assigned Scope: ${assignedClasses.join(', ')}`
+                  : 'Filtered to your authorized classes'}
+              </p>
+            </div>
+          </div>
+          {canManageHomework && (
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
+              Facilitator / Staff Write Access
+            </span>
+          )}
+        </div>
+
+        {canManageHomework && (
+          <form onSubmit={handleCreateHomework} className="grid grid-cols-1 sm:grid-cols-5 gap-2.5 text-xs bg-stone-50 dark:bg-stone-800/40 p-3.5 rounded-2xl border border-stone-200 dark:border-stone-700">
+            <select
+              value={hwSubject}
+              onChange={(e) => setHwSubject(e.target.value as SubjectName)}
+              aria-label="Homework subject"
+              className="px-2.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-800 dark:text-stone-100"
+            >
+              {SUBJECTS.map((sub) => (
+                <option key={sub} value={sub}>{sub}</option>
+              ))}
+            </select>
+            <select
+              value={hwClass}
+              onChange={(e) => setHwClass(e.target.value)}
+              aria-label="Homework target class"
+              className="px-2.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-800 dark:text-stone-100"
+            >
+              {(assignedClasses.length > 0 ? assignedClasses : ['Grade 10-A', 'Grade 8-B']).map((cls) => (
+                <option key={cls} value={cls}>{cls}</option>
+              ))}
+            </select>
+            <input
+              type="text"
+              required
+              value={hwTitle}
+              onChange={(e) => setHwTitle(e.target.value)}
+              placeholder="Assignment title..."
+              className="sm:col-span-2 px-3 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-800 dark:text-stone-100"
+            />
+            <button
+              type="submit"
+              className="px-3 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold flex items-center justify-center gap-1.5 transition"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Assign Homework</span>
+            </button>
+          </form>
+        )}
+
+        {hwFeedback && (
+          <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">{hwFeedback}</p>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+          {scopedHomework.map((hw) => {
+            const isDone = Boolean(hw.done?.[studentKey]);
+            return (
+              <div
+                key={hw.id}
+                className="p-3.5 rounded-2xl bg-stone-50 dark:bg-stone-800/40 border border-stone-200 dark:border-stone-700 flex items-start justify-between gap-3"
+              >
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="px-2 py-0.5 rounded-md bg-orange-100 dark:bg-orange-950 text-orange-800 dark:text-orange-300 font-bold text-[10px]">
+                      {hw.subject}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-300 font-mono text-[10px]">
+                      {hw.classGrade}
+                    </span>
+                    <span className="text-[10px] text-stone-400 font-mono">Due: {hw.due}</span>
+                  </div>
+                  <div className="font-bold text-stone-900 dark:text-stone-100">{hw.title}</div>
+                  <div className="text-[11px] text-stone-500">Assigned by {hw.by}</div>
+                </div>
+                {(currentUser.roles?.includes('student') || currentUser.roles?.includes('parent')) && (
+                  <button
+                    type="button"
+                    onClick={() => handleToggleHw(hw.id)}
+                    className={`px-2.5 py-1.5 rounded-xl font-bold text-[11px] shrink-0 transition ${
+                      isDone
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                        : 'bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 text-stone-700 dark:text-stone-200'
+                    }`}
+                  >
+                    {isDone ? 'Completed' : 'Mark Done'}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Editorial Header Section */}
       <div className="bg-white dark:bg-stone-900 rounded-3xl p-6 sm:p-8 border border-orange-200/80 dark:border-stone-800 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">

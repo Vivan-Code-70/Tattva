@@ -223,8 +223,8 @@ export const EmergencyLockdownOverlay: React.FC<EmergencyLockdownOverlayProps> =
             </div>
             <span>•</span>
             <div className="flex items-center gap-1.5 font-bold text-white">
-              <span>Principal Office:</span>
-              <span className="text-amber-300 font-mono">+91 98450 52094 (Ext. 101)</span>
+              <span>Centre Head Office:</span>
+              <span className="text-amber-300 font-mono">+91-76250-03355 (Ext. 101)</span>
             </div>
             <span>•</span>
             <div className="flex items-center gap-1 font-mono text-[11px] text-red-300">
@@ -240,7 +240,7 @@ export const EmergencyLockdownOverlay: React.FC<EmergencyLockdownOverlayProps> =
                 onClick={() => onSwitchToAuthority('principal')}
                 className="px-2.5 py-1 rounded-lg bg-purple-900/80 hover:bg-purple-800 text-purple-200 border border-purple-600 font-semibold text-[11px] transition"
               >
-                Principal (Dr. Shenoy)
+                Centre Head (Ms. Amrita)
               </button>
               <button
                 onClick={() => onSwitchToAuthority('sai')}

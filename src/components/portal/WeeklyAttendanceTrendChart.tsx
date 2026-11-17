@@ -286,8 +286,8 @@ export const WeeklyAttendanceTrendChart: React.FC<WeeklyAttendanceTrendChartProp
       </div>
 
       {/* Line Chart Area via Recharts */}
-      <div className="h-72 w-full pt-2">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="h-72 w-full pt-2 min-w-0">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <LineChart
             data={chartData}
             margin={{ top: 10, right: 10, left: -20, bottom: 0 }}

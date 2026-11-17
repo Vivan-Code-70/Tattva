@@ -28,8 +28,19 @@ import {
   Sliders,
   Tv,
   Printer,
+  Archive,
+  Laptop,
+  Moon,
+  ShieldCheck,
+  Sun,
+  Quote,
+  AlertCircle,
+  Phone,
+  Mail,
+  LogOut,
+  Lock,
 } from 'lucide-react';
-import { Header } from './components/Header';
+import { Header, NavTab } from './components/Header';
 import { CampusHologram } from './components/CampusHologram';
 import { CalendarView } from './components/CalendarView';
 import { ReportsView } from './components/ReportsView';
@@ -37,6 +48,8 @@ import { AiStudyLabView } from './components/AiStudyLabView';
 import { OtpHubView } from './components/OtpHubView';
 import { OtpGeneratorModal } from './components/OtpGeneratorModal';
 import { GuidedTourModal } from './components/GuidedTourModal';
+import { AdmissionsInquiryModal } from './components/AdmissionsInquiryModal';
+import { AccessDeniedView } from './components/AccessDeniedView';
 import { LoginView } from './components/portal/LoginView';
 import { StudentDashboard } from './components/portal/StudentDashboard';
 import { TeacherDashboard } from './components/portal/TeacherDashboard';
@@ -47,10 +60,12 @@ import { SupportDashboard } from './components/portal/SupportDashboard';
 import { ParentDashboard } from './components/portal/ParentDashboard';
 import { LibrarianDashboard } from './components/portal/LibrarianDashboard';
 import { DriverDashboard } from './components/portal/DriverDashboard';
+import { RoleSwitcherBar } from './components/portal/RoleSwitcherBar';
 import { LiveTransit } from './components/LiveTransit';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { initGoogleCalendarAuth } from './services/googleCalendarService';
 import { EmergencyLockdownOverlay } from './components/portal/EmergencyLockdownOverlay';
+import { AuthService, getStoredToken, onSessionExpired } from './services/authService';
 
 import {
   CalendarEvent,
@@ -69,6 +84,9 @@ import {
   BookHoldRequest,
   TransportOptInRequest,
   PassengerCategory,
+  SessionStatusResponse,
+  ProtectedFeature,
+  PublicSchoolInfo,
 } from './types';
 import { soundEffects } from './utils/audioChime';
 import {
@@ -79,58 +97,107 @@ import {
 } from './services/storageService';
 import { errorReportingService } from './services/errorService';
 import { profilerService } from './services/profilerService';
+import heroCampusCourtyardImg from './assets/images/hero_campus_courtyard_1794761894898.jpg';
+import classroomMentorshipImg from './assets/images/classroom_mentorship_1794761896314.jpg';
+import leadershipPortraitImg from './assets/images/tattvaswayam_leadership_portrait_1794762697557.jpg';
+
+const TAB_TO_FEATURE: Partial<Record<NavTab, ProtectedFeature>> = {
+  transit: 'bus_tracker',
+  study: 'homework',
+  cal: 'calendar',
+  rep: 'reports',
+  otp: 'otp_directory',
+};
+
+function parseTabFromLocation(): NavTab {
+  if (typeof window === 'undefined') return 'home';
+  const p = window.location.pathname.toLowerCase();
+  const s = new URLSearchParams(window.location.search);
+  const h = window.location.hash.toLowerCase();
+  if (p.includes('totp') || p.includes('otp') || s.get('page') === 'totp' || s.get('tab') === 'otp' || h.includes('totp') || h.includes('otp')) {
+    return 'otp';
+  }
+  if (p.includes('study') || p.includes('homework') || p.includes('quiz') || p.includes('assistant') || s.get('tab') === 'study' || h.includes('study')) {
+    return 'study';
+  }
+  if (p.includes('portal') || p.includes('login') || s.get('tab') === 'portal' || h.includes('portal')) {
+    return 'portal';
+  }
+  if (p.includes('campus') || s.get('tab') === 'campus') {
+    return 'campus';
+  }
+  if (p.includes('transit') || p.includes('bus-tracker') || p.includes('bus') || s.get('tab') === 'transit' || h.includes('transit')) {
+    return 'transit';
+  }
+  if (p.includes('cal') || s.get('tab') === 'cal') {
+    return 'cal';
+  }
+  if (p.includes('rep') || s.get('tab') === 'rep') {
+    return 'rep';
+  }
+  return 'home';
+}
 
 export default function App() {
-  const [state, setState] = useState<AppState>(() => StorageService.load());
+  const [state, setState] = useState<AppState>(() => ({
+    ...StorageService.load(),
+    currentUser: null,
+  }));
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [sessionState, setSessionState] = useState<SessionStatusResponse>({
+    state: 'UNAUTHENTICATED',
+    authenticated: false,
+    registered: false,
+    user: null,
+    roles: [],
+    allowedFeatures: [],
+  });
+  const [sessionResolved, setSessionResolved] = useState(false);
+  const [expiredSessionMessage, setExpiredSessionMessage] = useState<string | null>(null);
+  const [publicSchoolInfo, setPublicSchoolInfo] = useState<PublicSchoolInfo | null>(null);
+  const [activePortalRole, setActivePortalRole] = useState<UserRole | null>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  const isSuperAdmin = state.currentUser === 'sandhya' || state.currentUser === 'amrita';
-
-  const [activeTab, setActiveTabState] = useState<'home' | 'campus' | 'transit' | 'study' | 'cal' | 'rep' | 'portal' | 'otp'>(() => {
-    if (typeof window !== 'undefined') {
-      const p = window.location.pathname.toLowerCase();
-      const s = new URLSearchParams(window.location.search);
-      const h = window.location.hash.toLowerCase();
-      if (p.includes('totp') || p.includes('otp') || s.get('page') === 'totp' || s.get('tab') === 'otp' || h.includes('totp') || h.includes('otp')) {
-        return 'otp';
-      }
-      if (p.includes('study') || p.includes('quiz') || p.includes('assistant') || s.get('tab') === 'study' || h.includes('study')) {
-        return 'study';
-      }
-      if (p.includes('portal') || s.get('tab') === 'portal' || h.includes('portal')) {
-        return 'portal';
-      }
-      if (p.includes('campus') || s.get('tab') === 'campus') {
-        return 'campus';
-      }
-      if (p.includes('transit') || p.includes('bus') || s.get('tab') === 'transit' || h.includes('transit')) {
-        return 'transit';
-      }
-      if (p.includes('cal') || s.get('tab') === 'cal') {
-        return 'cal';
-      }
-      if (p.includes('rep') || s.get('tab') === 'rep') {
-        return 'rep';
-      }
+  const applyResolvedSession = (res: SessionStatusResponse) => {
+    setSessionState(res);
+    setSessionResolved(true);
+    if (res.state === 'REGISTERED' && res.user) {
+      const key = res.user.userKey || res.user.id.toLowerCase();
+      setExpiredSessionMessage(null);
+      setState((prev) => ({ ...prev, currentUser: key }));
+      setActivePortalRole((prevRole) =>
+        prevRole && res.roles.includes(prevRole) ? prevRole : res.user!.role
+      );
+    } else {
+      setState((prev) => ({ ...prev, currentUser: null }));
+      setActivePortalRole(null);
     }
-    return 'home';
-  });
+  };
 
-  const setActiveTab = (tab: 'home' | 'campus' | 'transit' | 'study' | 'cal' | 'rep' | 'portal' | 'otp') => {
-    if (tab === 'otp' && !isSuperAdmin) {
-      showToast('Restricted: The OTP Directory is accessible only to Ms. Sandhya & Ms. Amrita.');
-      setActiveTabState('portal');
-      if (typeof window !== 'undefined' && window.history && window.history.pushState) {
-        window.history.pushState({ tab: 'portal' }, '', '/portal');
-      }
-      return;
+  const refreshAuthSession = async () => {
+    try {
+      const res = await AuthService.fetchSession();
+      applyResolvedSession(res);
+      return res;
+    } catch {
+      setSessionResolved(true);
+      return null;
     }
+  };
 
+  const isSuperAdmin =
+    sessionState.state === 'REGISTERED' &&
+    (sessionState.allowedFeatures.includes('otp_directory') ||
+      state.currentUser === 'sandhya' ||
+      state.currentUser === 'amrita');
+
+  const [activeTab, setActiveTabState] = useState<NavTab>(() => parseTabFromLocation());
+
+  const setActiveTab = (tab: NavTab) => {
     setActiveTabState(tab);
     if (typeof window !== 'undefined' && window.history && window.history.pushState) {
       const targetPath = tab === 'otp' ? '/totp' : tab === 'home' ? '/' : `/${tab}`;
@@ -142,32 +209,53 @@ export default function App() {
 
   useEffect(() => {
     const handlePopState = () => {
-      const p = window.location.pathname.toLowerCase();
-      if (p.includes('totp') || p.includes('otp')) {
-        if (state.currentUser === 'sandhya' || state.currentUser === 'amrita') {
-          setActiveTabState('otp');
-        } else {
-          setActiveTabState('portal');
-        }
-      } else if (p.includes('study')) {
-        setActiveTabState('study');
-      } else if (p.includes('portal')) {
-        setActiveTabState('portal');
-      } else if (p.includes('campus')) {
-        setActiveTabState('campus');
-      } else if (p.includes('transit') || p.includes('bus')) {
-        setActiveTabState('transit');
-      } else if (p.includes('cal')) {
-        setActiveTabState('cal');
-      } else if (p.includes('rep')) {
-        setActiveTabState('rep');
-      } else {
-        setActiveTabState('home');
-      }
+      setActiveTabState(parseTabFromLocation());
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [state.currentUser]);
+  }, []);
+
+  useEffect(() => {
+    AuthService.fetchPublicSchoolInfo().then((info) => {
+      if (info) setPublicSchoolInfo(info);
+    });
+    refreshAuthSession();
+
+    const unsubExpired = onSessionExpired((reason) => {
+      setSessionState({
+        state: 'UNAUTHENTICATED',
+        authenticated: false,
+        registered: false,
+        user: null,
+        roles: [],
+        allowedFeatures: [],
+      });
+      setState((prev) => ({ ...prev, currentUser: null }));
+      setActivePortalRole(null);
+      setExpiredSessionMessage(reason);
+      setActiveTab('portal');
+      showToast(reason);
+    });
+
+    const handleFocus = () => {
+      refreshAuthSession();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      unsubExpired();
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
+
+  // Poll session status periodically when signed in to reflect admin role changes or expiry
+  useEffect(() => {
+    if (!sessionState.authenticated) return;
+    const interval = setInterval(() => {
+      refreshAuthSession();
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [sessionState.authenticated]);
 
   const [preselectedLoginUser, setPreselectedLoginUser] = useState<string>('vivan');
 
@@ -195,6 +283,8 @@ export default function App() {
   const [isProjectorMode, setIsProjectorMode] = useState<boolean>(false);
   const [isGuidedTourOpen, setIsGuidedTourOpen] = useState<boolean>(false);
   const [isOtpGeneratorOpen, setIsOtpGeneratorOpen] = useState<boolean>(false);
+  const [isAdmissionsModalOpen, setIsAdmissionsModalOpen] = useState<boolean>(false);
+  const [admissionsModalMode, setAdmissionsModalMode] = useState<'admissions' | 'visit'>('admissions');
 
   const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -385,52 +475,119 @@ export default function App() {
     };
   }, [state.currentUser]);
 
-  const currentUserProfile = state.currentUser ? USER_PROFILES[state.currentUser] : null;
+  const currentUserProfile: UserProfile | null =
+    sessionState.state === 'REGISTERED' && sessionState.user
+      ? {
+          ...(USER_PROFILES[sessionState.user.userKey || ''] || {}),
+          ...sessionState.user,
+          role:
+            activePortalRole && sessionState.roles.includes(activePortalRole)
+              ? activePortalRole
+              : sessionState.user.role,
+          roles: sessionState.roles,
+          assignedClasses: sessionState.user.assignedClasses,
+          childrenKeys: sessionState.user.childrenKeys,
+          child:
+            USER_PROFILES[sessionState.user.userKey || '']?.child ||
+            sessionState.user.childrenKeys?.[0],
+          linkedStudentKey: sessionState.user.linkedStudentKey,
+          isRegistered: true,
+        }
+      : null;
+
   const currentNotifications = state.currentUser ? state.notifications[state.currentUser] || [] : [];
 
-  // Log in as pre-configured user
-  const handleLoginSuccess = (userKey: string) => {
-    const u = USER_PROFILES[userKey];
-    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const handleAuthSessionResolved = (session: SessionStatusResponse) => {
+    applyResolvedSession(session);
+    if (session.state === 'UNREGISTERED') {
+      setActiveTab('home');
+      showToast(
+        session.message ||
+          'Your account isn’t registered with the school. Please contact the school office for access.'
+      );
+      return;
+    }
 
-    setState((prev) => ({
-      ...prev,
-      currentUser: userKey,
-      failedAttempts: { ...prev.failedAttempts, [userKey]: 0 },
-      auditLogs: [
-        {
-          id: `AUD-${Date.now()}`,
-          time: timeStr,
-          action: `Successful sign-in: ${u.name} (${u.role.toUpperCase()})`,
-          severity: 'info',
-        },
-        ...prev.auditLogs.slice(0, 49),
-      ],
-    }));
-    setActiveTab('portal');
-    showToast(`Welcome back, ${u.name}!`);
-  };
-
-  const handleLogout = () => {
-    if (state.currentUser) {
-      const u = USER_PROFILES[state.currentUser];
+    if (session.state === 'REGISTERED' && session.user) {
       const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       setState((prev) => ({
         ...prev,
-        currentUser: null,
+        currentUser: session.user!.userKey || session.user!.id.toLowerCase(),
         auditLogs: [
           {
             id: `AUD-${Date.now()}`,
             time: timeStr,
-            action: `User signed out: ${u?.name || 'Unknown'}`,
+            action: `Signed in via ${session.user!.authProvider === 'google' ? 'Google Sign-In' : 'School Portal'}: ${session.user!.name} (${session.roles.join(', ').toUpperCase()})`,
             severity: 'info',
           },
           ...prev.auditLogs.slice(0, 49),
         ],
       }));
-    } else {
-      setState((prev) => ({ ...prev, currentUser: null }));
+      setActiveTab('portal');
+      showToast(`Welcome back, ${session.user.name}!`);
     }
+  };
+
+  // Switch demo role via backend signed RBAC session endpoint
+  const handleLoginSuccess = async (userKey: string, preserveCurrentTab: boolean = false) => {
+    try {
+      const res = await AuthService.switchDemoRole(userKey);
+      applyResolvedSession(res);
+      const u = res.user || USER_PROFILES[userKey];
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setState((prev) => ({
+        ...prev,
+        currentUser: userKey,
+        failedAttempts: { ...prev.failedAttempts, [userKey]: 0 },
+        auditLogs: [
+          {
+            id: `AUD-${Date.now()}`,
+            time: timeStr,
+            action: `Signed in: ${u?.name || userKey} (${(res.roles || [u?.role]).join(', ').toUpperCase()})`,
+            severity: 'info',
+          },
+          ...prev.auditLogs.slice(0, 49),
+        ],
+      }));
+      if (!preserveCurrentTab) {
+        setActiveTab('portal');
+      }
+      showToast(`Welcome back, ${u?.name || userKey}!`);
+    } catch (err: any) {
+      showToast(err?.message || 'Unable to sign in with selected account.');
+    }
+  };
+
+  const handleLogout = async () => {
+    const prevName = currentUserProfile?.name || sessionState.user?.name;
+    await AuthService.logout();
+    setSessionState({
+      state: 'UNAUTHENTICATED',
+      authenticated: false,
+      registered: false,
+      user: null,
+      roles: [],
+      allowedFeatures: [],
+    });
+    setActivePortalRole(null);
+    setExpiredSessionMessage(null);
+
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    setState((prev) => ({
+      ...prev,
+      currentUser: null,
+      auditLogs: prevName
+        ? [
+            {
+              id: `AUD-${Date.now()}`,
+              time: timeStr,
+              action: `User signed out: ${prevName}`,
+              severity: 'info',
+            },
+            ...prev.auditLogs.slice(0, 49),
+          ]
+        : prev.auditLogs,
+    }));
     setActiveTab('home');
     showToast('Signed out of academic workspace.');
   };
@@ -689,7 +846,7 @@ export default function App() {
   const handleToggleLockdown = async (active: boolean, reason?: string) => {
     const authorityName =
       currentUserProfile?.name ||
-      (state.currentUser === 'principal' ? 'Dr. B. R. Shenoy (Principal)' : 'Mr. Sai (Gate Security)');
+      (state.currentUser === 'principal' ? 'Ms. Amrita (Centre Head)' : 'Mr. Sai (Gate Security)');
     const authorityRole = currentUserProfile?.role || (state.currentUser === 'principal' ? 'principal' : 'security');
     const now = Date.now();
 
@@ -699,9 +856,9 @@ export default function App() {
       triggeredRole: active ? authorityRole : state.emergencyLockdown?.triggeredRole || authorityRole,
       timestamp: active ? now : state.emergencyLockdown?.timestamp || now,
       reason: reason || (active ? 'Immediate Campus Security & Safety Protocol' : state.emergencyLockdown?.reason),
-      location: 'All Blocks (A, B, C) & Grounds, Jakkur Campus',
+      location: 'All Studios, Labs & Courtyard, Sampigehalli Jakkur Campus',
       instructions:
-        'Lock all classroom doors immediately. Remain away from windows. Turn off lights. Maintain complete silence. Stay in place until official ALL-CLEAR from Principal or Campus Security.',
+        'Lock all studio and lab doors immediately. Remain away from windows. Turn off lights. Maintain complete silence. Stay in place until official ALL-CLEAR from Centre Head or Campus Security.',
       resolvedAt: active ? undefined : now,
     };
 
@@ -722,11 +879,16 @@ export default function App() {
       ],
     }));
 
-    // Post to server backend
+    // Post to server backend with auth bearer
     try {
+      const token = getStoredToken();
       await fetch('/api/lockdown', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(updatedLockdown),
       });
     } catch (e) {
@@ -1506,7 +1668,7 @@ export default function App() {
         {
           id: `AUD-${Date.now()}`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          action: `Coordinator Ms. Bharthi updated 12-hour timetable for ${className} (${day})`,
+          action: `Chief Administrator Ms. Sangeetha updated 12-hour timetable for ${className} (${day})`,
           severity: 'info',
         },
         ...prev.auditLogs.slice(0, 49),
@@ -1684,616 +1846,1128 @@ export default function App() {
     handleLoginSuccess(roleKey);
   };
 
+  const openAdmissionsModal = (mode: 'admissions' | 'visit') => {
+    setAdmissionsModalMode(mode);
+    setIsAdmissionsModalOpen(true);
+  };
+
   return (
     <ErrorBoundary>
-      <div className="min-h-screen flex flex-col bg-[#fffdfb] dark:bg-[#1c120b] text-[#2b1d14] dark:text-[#fff4ea] overflow-x-hidden w-full max-w-full">
+      <div className="min-h-screen flex flex-col bg-[#FAF9F6] dark:bg-slate-950 text-[#182230] dark:text-slate-100 overflow-x-hidden w-full max-w-full">
         {/* Navigation Header */}
         <Header
           activeTab={activeTab}
           setActiveTab={(tab) => {
             setActiveTab(tab);
           }}
+          authState={sessionState.state}
+          allowedFeatures={sessionState.allowedFeatures}
           currentUser={currentUserProfile}
+          unregisteredEmail={sessionState.user?.email}
           onLogout={handleLogout}
-          isDark={isDark}
-          themeMode={themeMode}
-          toggleTheme={() => {
-            setThemeMode((prev) => {
-              if (prev === 'system') {
-                showToast('Theme set to Dark Mode (persisted).');
-                return 'dark';
-              }
-              if (prev === 'dark') {
-                showToast('Theme set to Light Mode (persisted).');
-                return 'light';
-              }
-              showToast('Theme set to System OS Preference (auto-sync).');
-              return 'system';
-            });
-          }}
-          onOpenOtpGenerator={() => setIsOtpGeneratorOpen(true)}
           notificationCount={currentNotifications.length}
-          isProjectorMode={isProjectorMode}
-          toggleProjectorMode={() => setIsProjectorMode((p) => !p)}
           onOpenGuidedTour={() => setIsGuidedTourOpen(true)}
           lockdown={state.emergencyLockdown}
         />
 
-        {/* Global Toast Notification */}
+        {/* Global Toast Notification (top-right so it never collides with bottom-right Role Switcher) */}
         {toastMessage && (
-          <div className="fixed bottom-6 right-6 z-50 animate-bounce-short">
-            <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-orange-600 text-white font-semibold text-xs shadow-xl border border-orange-500">
-              <Sparkles className="w-4 h-4 text-amber-200" />
-              <span>{toastMessage}</span>
+          <div
+            role="status"
+            aria-live="polite"
+            className="fixed top-20 right-4 sm:right-6 z-50 max-w-sm animate-view-enter toast no-print"
+          >
+            <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-slate-900 dark:bg-slate-800 text-white font-medium text-xs shadow-xl border border-slate-700">
+              <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
+              <span className="leading-snug">{toastMessage}</span>
             </div>
           </div>
         )}
 
         {/* Main Body Viewport */}
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8">
-          {/* TAB 1: ACADEMY OVERVIEW / HOME */}
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-12">
+          {/* TAB 1: WARM EDITORIAL SCHOOL LANDING PAGE */}
           {activeTab === 'home' && (
-            <div className="space-y-8">
-              {/* Notice Ticker Strip */}
-              <div className="rounded-2xl bg-orange-50 dark:bg-stone-900 border border-orange-200/90 dark:border-amber-950/90 p-2.5 sm:p-3 overflow-hidden flex items-center gap-3 text-xs shadow-xs">
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-orange-600 text-white font-extrabold uppercase text-[10px] tracking-wider shrink-0">
-                  <Bell className="w-3.5 h-3.5" />
-                  <span>Notice Ticker</span>
-                </div>
-                <div className="overflow-hidden whitespace-nowrap flex-1">
-                  <div className="inline-block animate-ticker text-stone-700 dark:text-stone-300 font-medium">
-                    <span className="mx-4 font-bold text-orange-600">★ ANNOUNCEMENT:</span>
-                    <span>Annual Science Exhibition & Robotics Arena will be inaugurated on Nov 14 in Jakkur Open Quadrangle.</span>
-                    <span className="mx-4 font-bold text-orange-600">•</span>
-                    <span>Route 14 Bus fleet tracker live telemetry active with Jakkur to Sahakara Nagar stops.</span>
-                    <span className="mx-4 font-bold text-orange-600">•</span>
-                    <span>Term 1 13-Subject Neural Mastery Evaluations and Official Transcripts now available for download.</span>
-                    <span className="mx-4 font-bold text-orange-600">•</span>
-                    <span>Class 10 Pre-Board examination schedule released in 12-Hour Timetable section.</span>
+            <div className="space-y-14 sm:space-y-16 animate-view-enter">
+              {/* Unregistered Authenticated Google Account Banner */}
+              {sessionState.state === 'UNREGISTERED' && (
+                <div
+                  role="alert"
+                  className="rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-[#B45309] dark:text-amber-300 flex items-center justify-center shrink-0">
+                      <AlertCircle className="w-5 h-5" />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-bold text-[#182230] dark:text-white">
+                          Your account isn’t registered with the school. Please contact the school office for access.
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-700 dark:text-slate-300">
+                        Signed in as <strong className="font-mono">{sessionState.user?.email}</strong>. You can view school details, contact information, and public announcements below, while Bus Tracker, Homework, Calendar, and Reports remain restricted.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-400 pt-0.5">
+                        <span className="inline-flex items-center gap-1">
+                          <Phone className="w-3.5 h-3.5 text-[#B45309]" />
+                          <span>{publicSchoolInfo?.phone || '+91-76250-03355'}</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <Mail className="w-3.5 h-3.5 text-[#B45309]" />
+                          <span>{publicSchoolInfo?.email || 'info@tattvaswayam.com'}</span>
+                        </span>
+                      </div>
+                    </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="px-4 py-2 rounded-xl bg-[#182230] hover:bg-[#243247] text-white font-semibold text-xs transition flex items-center gap-1.5 shrink-0 self-start sm:self-center cursor-pointer"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Sign Out</span>
+                  </button>
                 </div>
+              )}
+
+              {/* Calm Parent & Admissions Bulletin Strip */}
+              <div className="rounded-xl bg-[#F4EFE6] dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Bell className="w-3.5 h-3.5 text-[#B45309] dark:text-amber-400 shrink-0" />
+                  <span className="font-semibold text-[#182230] dark:text-slate-100 shrink-0">
+                    Admissions &amp; School Updates:
+                  </span>
+                  <span className="text-slate-700 dark:text-slate-300 truncate">
+                    Admissions open for 2026–27 across Inizio, Novitiate, Mezzo &amp; Adroit (Ages 3.8–19 · Grades 1–12). Call +91-76250-03355.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openAdmissionsModal('visit')}
+                  className="text-xs font-semibold text-[#B45309] dark:text-amber-400 hover:underline whitespace-nowrap shrink-0 cursor-pointer"
+                >
+                  Schedule a Tour →
+                </button>
               </div>
 
-              {/* Cinematic Hero Section with School Name and One Primary Button */}
-              <div className="relative rounded-3xl p-6 sm:p-12 overflow-hidden bg-gradient-to-br from-orange-500 via-orange-600 to-amber-700 text-white shadow-xl">
-                {/* Subtle Ambient Glow */}
-                <div className="absolute top-0 right-0 w-96 h-96 bg-white/15 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
-                <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-amber-400/20 rounded-full blur-2xl pointer-events-none" />
+              {/* Section 1: Warm Daylight Editorial Hero Split */}
+              <section className="space-y-6">
+                <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800 p-6 sm:p-10 lg:p-12 shadow-xs">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-stretch">
+                    {/* Left Column: Warm Human Copy & Admissions CTAs */}
+                    <div className="lg:col-span-7 flex flex-col justify-between space-y-6">
+                      <div className="space-y-4">
+                        <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-[#B45309] dark:text-amber-400">
+                          <span>Sampigehalli, Jakkur · Bengaluru</span>
+                          <span aria-hidden="true" className="text-[#D8D0C0] dark:text-slate-600">·</span>
+                          <span>NEP 2020 Open Learning · CBSE, Cambridge &amp; NIOS</span>
+                          <span aria-hidden="true" className="text-[#D8D0C0] dark:text-slate-600">·</span>
+                          <span>Ages 3.8–19 (Grades 1–12)</span>
+                        </div>
 
-                <div className="relative z-10 max-w-3xl space-y-5">
-                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-white/95 text-orange-800 shadow-sm backdrop-blur-md">
-                    <span className="w-2 h-2 rounded-full bg-orange-600 animate-pulse" />
-                    <span>Jakkur, Bengaluru • Affiliated to CBSE & Cambridge Assessment</span>
+                        <h1 className="text-3xl sm:text-5xl font-bold font-editorial tracking-tight leading-[1.12] text-[#182230] dark:text-white max-w-2xl">
+                          Where Curious Minds Become Co-Creators of Knowledge
+                        </h1>
+
+                        <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed max-w-xl">
+                          At Tattvaswayam Open Learning Resource Centre &amp; Future Academy, we blend inquiry-based NEP 2020 learning across 13 subjects with personal mentorship, flexible CBSE, Cambridge &amp; NIOS pathways, and real-time school bus peace of mind.
+                        </p>
+                      </div>
+
+                      <div className="space-y-5">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => openAdmissionsModal('admissions')}
+                            className="px-6 py-3.5 rounded-xl bg-[#B45309] hover:bg-[#92400E] text-white font-bold text-sm transition flex items-center gap-2 cursor-pointer whitespace-nowrap"
+                          >
+                            <span>Admissions Open for 2026–27</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => openAdmissionsModal('visit')}
+                            className="px-5 py-3.5 rounded-xl bg-[#FAF9F6] dark:bg-slate-800 hover:bg-[#F4EFE6] dark:hover:bg-slate-700 text-[#182230] dark:text-slate-100 border border-[#D8D0C0] dark:border-slate-700 font-semibold text-sm transition flex items-center gap-2 cursor-pointer whitespace-nowrap"
+                          >
+                            <Calendar className="w-4 h-4 text-[#B45309] dark:text-amber-400" />
+                            <span>Book a Campus Visit</span>
+                          </button>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-400 pt-1">
+                          <span className="flex items-center gap-1.5">
+                            <MapPin className="w-4 h-4 shrink-0 text-[#B45309] dark:text-amber-400" />
+                            <span>#2060, Sampigehalli, Jakkur, Bengaluru 560064</span>
+                          </span>
+                          <span className="text-slate-400" aria-hidden="true">·</span>
+                          <span>+91-76250-03355</span>
+                          <span className="text-slate-400" aria-hidden="true">·</span>
+                          <span>info@tattvaswayam.com</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Column: Sunlit Campus Courtyard Photograph */}
+                    <div className="lg:col-span-5 relative rounded-2xl overflow-hidden min-h-[260px] lg:min-h-[380px] bg-[#F4EFE6] dark:bg-slate-800 border border-[#E6E1D6] dark:border-slate-700">
+                      <img
+                        src={heroCampusCourtyardImg}
+                        alt="Students walking across the sunlit courtyard at Tattvaswayam in Sampigehalli, Jakkur, Bengaluru"
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover lg:absolute lg:inset-0"
+                      />
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#182230]/85 via-[#182230]/45 to-transparent p-5 text-white">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-lg bg-white p-1 shrink-0 flex items-center justify-center">
+                            <img
+                              src="/assets/aistudio/Tattvaswayam_School_Logo_dd139741.png"
+                              alt="Tattvaswayam Crest"
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                          <div>
+                            <div className="text-xs font-bold text-white">Sampigehalli, Jakkur Campus</div>
+                            <div className="text-[11px] text-amber-200">
+                              TURN open library, Wander &amp; Wonder gardens &amp; learning studios
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
+                </div>
 
-                  <div className="space-y-2">
-                    <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black font-serif tracking-tight leading-[1.1]">
-                      Tattvasayam Future Academy
-                    </h1>
-                    <p className="text-base sm:text-lg font-medium text-orange-100 leading-snug">
-                      Pioneering Integral Pedagogy, 13 Interdisciplinary Disciplines & Neural Mastery
+                {/* 4-Column Family Trust Metrics Row Directly Below Hero Split */}
+                <dl className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800">
+                    <dt className="text-xs text-slate-500 dark:text-slate-400">Personal Mentorship</dt>
+                    <dd className="text-2xl font-bold text-[#182230] dark:text-white font-editorial mt-1 tabular-nums">
+                      1 : 18 Ratio
+                    </dd>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">
+                      Dedicated mentor for every small learner circle
                     </p>
                   </div>
 
-                  <p className="text-orange-50/90 text-xs sm:text-sm leading-relaxed max-w-2xl font-sans">
-                    Welcome to our comprehensive academic platform. Featuring cryptographic OTP & MPIN authentication, 3D architectural digital twin hologram, live Gate 2 biometric telemetry, and dedicated role-authoritative workspaces for our entire school community.
+                  <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800">
+                    <dt className="text-xs text-slate-500 dark:text-slate-400">Four Learning Stages</dt>
+                    <dd className="text-2xl font-bold text-[#182230] dark:text-white font-editorial mt-1">
+                      Inizio – Adroit
+                    </dd>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">
+                      Ages 3.8–19 years · Grades 1–12 equivalent
+                    </p>
+                  </div>
+
+                  <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800">
+                    <dt className="text-xs text-slate-500 dark:text-slate-400">Holistic Breadth</dt>
+                    <dd className="text-2xl font-bold text-[#182230] dark:text-white font-editorial mt-1 tabular-nums">
+                      13 Subjects
+                    </dd>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">
+                      STEM, Philosophy, Languages, Arts &amp; Out-of-Syllabus skills
+                    </p>
+                  </div>
+
+                  <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800">
+                    <dt className="text-xs text-slate-500 dark:text-slate-400">Door-to-Door Safety</dt>
+                    <dd className="text-2xl font-bold text-emerald-700 dark:text-emerald-400 font-editorial mt-1">
+                      Live Bus Care
+                    </dd>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">
+                      GPS Route 14 bus updates &amp; gate check-in alerts
+                    </p>
+                  </div>
+                </dl>
+              </section>
+
+              {/* Section 2: Why Parents Choose Tattvaswayam & 4 Learning Stages */}
+              <section className="space-y-8">
+                <div className="max-w-2xl space-y-2">
+                  <span className="text-xs font-semibold text-[#B45309] dark:text-amber-400 block">
+                    Co-Creators of Knowledge · Zero Rote Learning
+                  </span>
+                  <h2 className="text-2xl sm:text-3xl font-bold text-[#182230] dark:text-slate-100 font-editorial">
+                    Why Parents Choose Tattvaswayam
+                  </h2>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                    Rooted in NEP 2020 open learning, Tattvaswayam replaces high-pressure rote drills with choice-driven discovery, attentive mentorship, and calm daily transparency for families.
                   </p>
-
-                  <div className="flex items-center gap-2 text-xs text-orange-100 font-medium pt-1">
-                    <MapPin className="w-4 h-4 shrink-0 text-amber-200" />
-                    <span>2060, Jakkur Plantation Road, Sampigehalli, Bengaluru, Karnataka 560064</span>
-                  </div>
-
-                  {/* Single Primary "Get started" Button */}
-                  <div className="flex flex-wrap items-center gap-4 pt-4">
-                    <button
-                      onClick={() => setActiveTab('portal')}
-                      className="px-7 py-3.5 rounded-2xl bg-white text-orange-800 hover:bg-orange-50 font-extrabold text-sm shadow-xl transition transform hover:-translate-y-0.5 flex items-center gap-2.5 active:scale-95"
-                    >
-                      <span>Get started</span>
-                      <ArrowRight className="w-4 h-4 text-orange-600" />
-                    </button>
-
-                    <button
-                      onClick={() => setIsGuidedTourOpen(true)}
-                      className="px-5 py-3.5 rounded-2xl bg-orange-700/60 hover:bg-orange-700/80 text-white border border-white/30 font-bold text-xs backdrop-blur-md transition flex items-center gap-2"
-                    >
-                      <Sparkles className="w-4 h-4 text-amber-200" />
-                      <span>Assembly Demo Guide</span>
-                    </button>
-
-                    <button
-                      onClick={() => setActiveTab('study')}
-                      className="px-5 py-3.5 rounded-2xl bg-amber-500/90 hover:bg-amber-400 text-stone-900 font-bold text-xs shadow-md transition flex items-center gap-2"
-                    >
-                      <BookOpen className="w-4 h-4" />
-                      <span>AI Study Lab</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Live Statistics Strip */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-stone-900 border border-orange-200 dark:border-amber-950 shadow-xs">
-                  <span className="text-[11px] font-bold uppercase text-stone-400 dark:text-stone-500 tracking-wider block">
-                    Scholastic Enrolment
-                  </span>
-                  <div className="text-2xl sm:text-3xl font-extrabold text-stone-900 dark:text-stone-100 mt-1 font-mono">
-                    1,240
-                  </div>
-                  <span className="text-xs text-stone-500 mt-0.5 block">Scholars across 12 grades</span>
                 </div>
 
-                <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-stone-900 border border-orange-200 dark:border-amber-950 shadow-xs">
-                  <span className="text-[11px] font-bold uppercase text-stone-400 dark:text-stone-500 tracking-wider block">
-                    Academic Scope
-                  </span>
-                  <div className="text-2xl sm:text-3xl font-extrabold text-orange-600 dark:text-orange-400 mt-1 font-mono">
-                    13 Subjects
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+                  {/* Editorial Mentorship Photograph */}
+                  <div className="lg:col-span-5 rounded-2xl overflow-hidden border border-[#E6E1D6] dark:border-slate-800 bg-[#F4EFE6] dark:bg-slate-900 relative min-h-[280px]">
+                    <img
+                      src={classroomMentorshipImg}
+                      alt="A mentor guiding three smiling learners together at a sunlit wooden studio table"
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover lg:absolute lg:inset-0"
+                    />
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#182230]/85 via-[#182230]/35 to-transparent p-5 text-white">
+                      <p className="text-xs font-medium text-amber-200">Inquiry Over Memorization</p>
+                      <p className="text-sm font-semibold text-white mt-0.5">
+                        Learners sit beside facilitators to ask &ldquo;why&rdquo;, reflect in dialogue, and build real-world judgment.
+                      </p>
+                    </div>
                   </div>
-                  <span className="text-xs text-stone-500 mt-0.5 block">Interdisciplinary STEM & Arts</span>
+
+                  {/* 4 Trust Pillars */}
+                  <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800 space-y-2.5">
+                      <span className="text-xs font-semibold text-[#B45309] dark:text-amber-400 tabular-nums">
+                        01. Flexible Academic Pathways
+                      </span>
+                      <h3 className="font-bold text-lg text-[#182230] dark:text-slate-100 font-editorial">
+                        Open Learning, CBSE, Cambridge &amp; NIOS
+                      </h3>
+                      <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                        Children master all 13 subjects—Sciences, Mathematics, Languages, Philosophy, Music, Dance, and Sports—plus Out-of-Syllabus financial, media, and design skills.
+                      </p>
+                    </div>
+
+                    <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800 space-y-2.5">
+                      <span className="text-xs font-semibold text-[#B45309] dark:text-amber-400 tabular-nums">
+                        02. Known &amp; Nurtured by Name
+                      </span>
+                      <h3 className="font-bold text-lg text-[#182230] dark:text-slate-100 font-editorial">
+                        Small Mentor Circles (1:18 Ratio)
+                      </h3>
+                      <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                        Low mentor-to-learner ratios mean every child is deeply understood—supported seamlessly by dedicated facilitators including our Inclusive Learning team.
+                      </p>
+                    </div>
+
+                    <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800 space-y-2.5">
+                      <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 tabular-nums">
+                        03. Peace of Mind Every Morning
+                      </span>
+                      <h3 className="font-bold text-lg text-[#182230] dark:text-slate-100 font-editorial">
+                        Safe GPS-Monitored Transport
+                      </h3>
+                      <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                        Follow Route 14 live from pickup in Yelahanka, Sahakar Nagar, or Amruthahalli to Sampigehalli Gate 2, and receive instant check-in alerts when they arrive.
+                      </p>
+                    </div>
+
+                    <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800 space-y-2.5">
+                      <span className="text-xs font-semibold text-sky-800 dark:text-sky-400 tabular-nums">
+                        04. Signature Campus Life
+                      </span>
+                      <h3 className="font-bold text-lg text-[#182230] dark:text-slate-100 font-editorial">
+                        TURN Library, Vichar Manch &amp; Young Farmers
+                      </h3>
+                      <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                        Beyond textbooks, learners grow through The Unusual Reading Nook (TURN), Swayam Vichar Manch amphitheatre dialogues, and Wander &amp; Wonder ecological gardens.
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-stone-900 border border-orange-200 dark:border-amber-950 shadow-xs">
-                  <span className="text-[11px] font-bold uppercase text-stone-400 dark:text-stone-500 tracking-wider block">
-                    Live Campus Attendance
-                  </span>
-                  <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1 font-mono">
-                    98.4%
-                  </div>
-                  <span className="text-xs text-stone-500 mt-0.5 block">Gate 2 biometric verified</span>
-                </div>
-
-                <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-stone-900 border border-orange-200 dark:border-amber-950 shadow-xs">
-                  <span className="text-[11px] font-bold uppercase text-stone-400 dark:text-stone-500 tracking-wider block">
-                    Institutional Security
-                  </span>
-                  <div className="text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400 mt-1 font-mono">
-                    100% 2FA
-                  </div>
-                  <span className="text-xs text-stone-500 mt-0.5 block">30s OTP & MPIN safeguards</span>
-                </div>
-              </div>
-
-              {/* Academic Workspaces & Dedicated Tools Gateway */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-extrabold text-xl text-stone-900 dark:text-stone-100">
-                      Interactive Campus Workspaces
+                {/* 4 Official Age-Based Stages from tattvaswayam.com */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="p-5 rounded-2xl bg-[#F4EFE6]/70 dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800 space-y-1.5">
+                    <span className="text-[11px] font-bold text-[#B45309] dark:text-amber-400">
+                      Inizio · Ages 3.8 – 5.8 yrs
+                    </span>
+                    <h3 className="font-bold text-base text-[#182230] dark:text-white font-editorial">
+                      Early Curiosity &amp; Play
                     </h3>
-                    <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
-                      Dedicated high-fidelity interfaces for spatial architecture, fleet telemetry, inquiry labs, and academic records.
+                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                      Gentle literacy and numeracy woven through stories, rhythm, movement, and tactile wonder.
                     </p>
                   </div>
-                  <span className="hidden sm:inline-block text-xs font-mono font-semibold text-orange-600 dark:text-orange-400">
-                    4 Dedicated Modules
-                  </span>
+
+                  <div className="p-5 rounded-2xl bg-[#F4EFE6]/70 dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800 space-y-1.5">
+                    <span className="text-[11px] font-bold text-[#B45309] dark:text-amber-400">
+                      Novitiate · Ages 5.9 – 10 yrs (Gr. 1–5)
+                    </span>
+                    <h3 className="font-bold text-base text-[#182230] dark:text-white font-editorial">
+                      Foundations &amp; Expression
+                    </h3>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                      Strengthening literature, TURN reading circles, mathematical reasoning, and nature exploration.
+                    </p>
+                  </div>
+
+                  <div className="p-5 rounded-2xl bg-[#F4EFE6]/70 dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800 space-y-1.5">
+                    <span className="text-[11px] font-bold text-[#B45309] dark:text-amber-400">
+                      Mezzo · Ages 11 – 14 yrs (Gr. 6–8)
+                    </span>
+                    <h3 className="font-bold text-base text-[#182230] dark:text-white font-editorial">
+                      Independent Inquiry
+                    </h3>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                      Transitioning to independent projects, field visits, conceptual depth, and early internships.
+                    </p>
+                  </div>
+
+                  <div className="p-5 rounded-2xl bg-[#F4EFE6]/70 dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800 space-y-1.5">
+                    <span className="text-[11px] font-bold text-[#B45309] dark:text-amber-400">
+                      Adroit · Ages 15 – 19 yrs (Gr. 9–12)
+                    </span>
+                    <h3 className="font-bold text-base text-[#182230] dark:text-white font-editorial">
+                      Focused Pathways &amp; Readiness
+                    </h3>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                      Personal mentorship toward CBSE, Cambridge, or NIOS pathways, portfolio ownership, and university readiness.
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              {/* Section 3: Real Parent Outcomes (Zero Tech Jargon) */}
+              <section className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+                  <div className="space-y-1">
+                    <span className="text-xs font-semibold text-[#B45309] dark:text-amber-400 block">
+                      Designed Around Family Life
+                    </span>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-[#182230] dark:text-slate-100 font-editorial">
+                      Every Part of Your Child&apos;s School Day, Connected
+                    </h2>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Click any card below to preview it firsthand
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {/* Gateway Card 1: 3D Campus Hologram */}
-                  <div className="p-6 rounded-3xl bg-white dark:bg-stone-900 border border-orange-200/90 dark:border-amber-950 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-950/80 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold shadow-2xs group-hover:scale-105 transition-transform">
-                          <Layers className="w-6 h-6" />
-                        </div>
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-orange-50 dark:bg-stone-800 text-orange-700 dark:text-orange-300 border border-orange-200/60 dark:border-stone-700">
-                          Three.js 3D WebGL
+                  {/* Card 1: Safe Arrival & Bus Tracking */}
+                  <div className="p-6 sm:p-7 rounded-2xl bg-white dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800 flex flex-col justify-between gap-5">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                        <span className="font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                          <Bus className="w-4 h-4" />
+                          <span>Morning &amp; Afternoon Safety</span>
                         </span>
+                        <span>Yelahanka · Sahakar Nagar · Jakkur</span>
                       </div>
 
-                      <div className="space-y-1.5">
-                        <h4 className="font-extrabold text-lg text-stone-900 dark:text-stone-100 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
-                          Jakkur Campus Architectural Hologram
-                        </h4>
-                        <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
-                          Interactive 3D digital twin of Tattvasayam's Open Learning Resource Centre. Features 360° orbital rotation, elevation zooms, and physical architectural layout inspections.
-                        </p>
-                      </div>
+                      <h3 className="font-bold text-xl text-[#182230] dark:text-slate-100 font-editorial">
+                        Know Your Child Arrived Safely
+                      </h3>
+                      <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                        See where your child&apos;s school bus is in real time, check realistic stop arrival times when Bengaluru traffic shifts, and receive gate check-in alerts the moment they step onto campus.
+                      </p>
                     </div>
 
-                    <div className="pt-5 border-t border-orange-100 dark:border-stone-800/80 flex items-center justify-between mt-4">
-                      <span className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
-                        Spatial Twin Active
+                    <div className="pt-4 border-t border-[#F4EFE6] dark:border-slate-800 flex items-center justify-between">
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        5 staffed pickup &amp; drop stations
                       </span>
                       <button
-                        onClick={() => setActiveTab('campus')}
-                        className="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 group-hover:translate-x-0.5"
+                        type="button"
+                        onClick={() =>
+                          sessionState.state === 'REGISTERED' &&
+                          sessionState.allowedFeatures.includes('bus_tracker')
+                            ? setActiveTab('transit')
+                            : setActiveTab('portal')
+                        }
+                        className="px-4 py-2 rounded-xl bg-[#182230] dark:bg-amber-600 hover:bg-[#243247] dark:hover:bg-amber-500 text-white font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                       >
-                        <span>Launch Hologram</span>
+                        {sessionState.state === 'REGISTERED' &&
+                        sessionState.allowedFeatures.includes('bus_tracker') ? (
+                          <span>Track School Bus</span>
+                        ) : (
+                          <>
+                            <Lock className="w-3.5 h-3.5" />
+                            <span>Sign In for Bus Tracker</span>
+                          </>
+                        )}
                         <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
 
-                  {/* Gateway Card 2: Route 14 Transit Fleet Telemetry */}
-                  <div className="p-6 rounded-3xl bg-white dark:bg-stone-900 border border-orange-200/90 dark:border-amber-950 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold shadow-2xs group-hover:scale-105 transition-transform">
-                          <Bus className="w-6 h-6" />
-                        </div>
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-50 dark:bg-stone-800 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-stone-700 flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          Live GPS Fleet
+                  {/* Card 2: Clear Progress Across All 13 Subjects */}
+                  <div className="p-6 sm:p-7 rounded-2xl bg-white dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800 flex flex-col justify-between gap-5">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                        <span className="font-semibold text-[#B45309] dark:text-amber-400 flex items-center gap-1.5">
+                          <FileText className="w-4 h-4" />
+                          <span>Term Reports &amp; Feedback</span>
                         </span>
+                        <span>Grades 1–12 · Printable Reports</span>
                       </div>
 
-                      <div className="space-y-1.5">
-                        <h4 className="font-extrabold text-lg text-stone-900 dark:text-stone-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                          Route 14 Fleet Telemetry & Transit
-                        </h4>
-                        <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
-                          Live real-time GPS telemetry connecting Jakkur Plantation Road to Sahakara Nagar. Track vehicle KA-04-E-2040, station ETA timings, and automated parent arrival notifications.
-                        </p>
-                      </div>
+                      <h3 className="font-bold text-xl text-[#182230] dark:text-slate-100 font-editorial">
+                        Clear Progress Across All 13 Subjects
+                      </h3>
+                      <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                        Follow weekly attendance trends, subject-wise marks, and thoughtful written notes from teachers—and download or print clean term report cards for your family records.
+                      </p>
                     </div>
 
-                    <div className="pt-5 border-t border-orange-100 dark:border-stone-800/80 flex items-center justify-between mt-4">
-                      <span className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
-                        6 Transit Stations Active
+                    <div className="pt-4 border-t border-[#F4EFE6] dark:border-slate-800 flex items-center justify-between">
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        Term 1 report cards ready
                       </span>
                       <button
-                        onClick={() => setActiveTab('transit')}
-                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 group-hover:translate-x-0.5"
+                        type="button"
+                        onClick={() =>
+                          sessionState.state === 'REGISTERED' &&
+                          sessionState.allowedFeatures.includes('reports')
+                            ? setActiveTab('rep')
+                            : setActiveTab('portal')
+                        }
+                        className="px-4 py-2 rounded-xl bg-[#182230] dark:bg-amber-600 hover:bg-[#243247] dark:hover:bg-amber-500 text-white font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                       >
-                        <span>Open Live Transit</span>
+                        {sessionState.state === 'REGISTERED' &&
+                        sessionState.allowedFeatures.includes('reports') ? (
+                          <span>View Progress Reports</span>
+                        ) : (
+                          <>
+                            <Lock className="w-3.5 h-3.5" />
+                            <span>Sign In for Reports</span>
+                          </>
+                        )}
                         <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
 
-                  {/* Gateway Card 3: AI Study & Lesson Lab */}
-                  <div className="p-6 rounded-3xl bg-white dark:bg-stone-900 border border-orange-200/90 dark:border-amber-950 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold shadow-2xs group-hover:scale-105 transition-transform">
-                          <Sparkles className="w-6 h-6" />
-                        </div>
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-amber-50 dark:bg-stone-800 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-stone-700">
-                          Gemini 2.5 AI
+                  {/* Card 3: Explore Our Jakkur Campus */}
+                  <div className="p-6 sm:p-7 rounded-2xl bg-white dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800 flex flex-col justify-between gap-5">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                        <span className="font-semibold text-sky-800 dark:text-sky-400 flex items-center gap-1.5">
+                          <MapPin className="w-4 h-4" />
+                          <span>Interactive Campus Walk</span>
                         </span>
+                        <span>#2060, Sampigehalli, Jakkur</span>
                       </div>
 
-                      <div className="space-y-1.5">
-                        <h4 className="font-extrabold text-lg text-stone-900 dark:text-stone-100 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
-                          AI Inquiry & Research Lab
-                        </h4>
-                        <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
-                          Socratic learning assistant spanning 13 interdisciplinary subjects. Automatically generate 45-minute structured lesson schemas and evaluate comprehension with auto-graded quizzes.
-                        </p>
-                      </div>
+                      <h3 className="font-bold text-xl text-[#182230] dark:text-slate-100 font-editorial">
+                        Explore Our Jakkur Campus
+                      </h3>
+                      <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                        Take a guided look around TURN (The Unusual Reading Nook), our science labs, Swayam Vichar Manch amphitheatre, Wander &amp; Wonder gardens, and sports grounds before visiting in person.
+                      </p>
                     </div>
 
-                    <div className="pt-5 border-t border-orange-100 dark:border-stone-800/80 flex items-center justify-between mt-4">
-                      <span className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
-                        13 Core Disciplines
+                    <div className="pt-4 border-t border-[#F4EFE6] dark:border-slate-800 flex items-center justify-between">
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        Interactive map &amp; campus visits
                       </span>
                       <button
-                        onClick={() => setActiveTab('study')}
-                        className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 group-hover:translate-x-0.5"
+                        type="button"
+                        onClick={() =>
+                          sessionState.state === 'REGISTERED'
+                            ? setActiveTab('campus')
+                            : openAdmissionsModal('visit')
+                        }
+                        className="px-4 py-2 rounded-xl bg-[#182230] dark:bg-amber-600 hover:bg-[#243247] dark:hover:bg-amber-500 text-white font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                       >
-                        <span>Launch Study Lab</span>
+                        <span>
+                          {sessionState.state === 'REGISTERED' ? 'Explore Campus Map' : 'Book a Campus Visit'}
+                        </span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
 
-                  {/* Gateway Card 4: Reports & Transcripts */}
-                  <div className="p-6 rounded-3xl bg-white dark:bg-stone-900 border border-orange-200/90 dark:border-amber-950 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold shadow-2xs group-hover:scale-105 transition-transform">
-                          <Printer className="w-6 h-6" />
-                        </div>
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-blue-50 dark:bg-stone-800 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-stone-700">
-                          Recharts & CSV
+                  {/* Card 4: 1-on-1 Guided Homework Support */}
+                  <div className="p-6 sm:p-7 rounded-2xl bg-white dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800 flex flex-col justify-between gap-5">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                        <span className="font-semibold text-[#B45309] dark:text-amber-400 flex items-center gap-1.5">
+                          <BookOpen className="w-4 h-4" />
+                          <span>After-School Study Companion</span>
                         </span>
+                        <span>All 13 School Subjects</span>
                       </div>
 
-                      <div className="space-y-1.5">
-                        <h4 className="font-extrabold text-lg text-stone-900 dark:text-stone-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                          Official Transcripts & Attendance
-                        </h4>
-                        <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
-                          Weekly attendance analytics visualized with Recharts, formatted CSV data downloads, and printable A4 report cards signed with Dr. Shenoy's official institutional crest.
-                        </p>
-                      </div>
+                      <h3 className="font-bold text-xl text-[#182230] dark:text-slate-100 font-editorial">
+                        1-on-1 Guided Homework Support
+                      </h3>
+                      <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                        When your child gets stuck on Physics, Mathematics, Philosophy, or Languages at home, our step-by-step study guide walks them through the concept patiently—never just handing over answers.
+                      </p>
                     </div>
 
-                    <div className="pt-5 border-t border-orange-100 dark:border-stone-800/80 flex items-center justify-between mt-4">
-                      <span className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
-                        Term 1 Evaluations Ready
+                    <div className="pt-4 border-t border-[#F4EFE6] dark:border-slate-800 flex items-center justify-between">
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        Concept explanations &amp; practice quizzes
                       </span>
                       <button
-                        onClick={() => setActiveTab('rep')}
-                        className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 group-hover:translate-x-0.5"
+                        type="button"
+                        onClick={() =>
+                          sessionState.state === 'REGISTERED' &&
+                          sessionState.allowedFeatures.includes('homework')
+                            ? setActiveTab('study')
+                            : setActiveTab('portal')
+                        }
+                        className="px-4 py-2 rounded-xl bg-[#182230] dark:bg-amber-600 hover:bg-[#243247] dark:hover:bg-amber-500 text-white font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                       >
-                        <span>View Reports</span>
+                        {sessionState.state === 'REGISTERED' &&
+                        sessionState.allowedFeatures.includes('homework') ? (
+                          <span>Open Homework &amp; Study</span>
+                        ) : (
+                          <>
+                            <Lock className="w-3.5 h-3.5" />
+                            <span>Sign In for Homework</span>
+                          </>
+                        )}
                         <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
                 </div>
-              </div>
+              </section>
 
-              {/* 4 Feature Showcase Pillars */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-extrabold text-lg text-stone-900 dark:text-stone-100">
-                    Next-Generation School Infrastructure
-                  </h3>
-                  <span className="text-xs text-stone-500">Integral Pedagogy Framework</span>
+              {/* Section 4: Leadership & Mentors + Voices from Our Parent Community */}
+              <section className="space-y-8">
+                {/* Message from Leadership & Core Mentors */}
+                <div className="rounded-2xl bg-[#F4EFE6] dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800 p-6 sm:p-10 space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-8 items-center">
+                    <div className="md:col-span-4 lg:col-span-3">
+                      <div className="aspect-square max-w-[220px] mx-auto rounded-2xl overflow-hidden border border-[#D8D0C0] dark:border-slate-700 bg-white">
+                        <img
+                          src={leadershipPortraitImg}
+                          alt="Centre Head Amrita standing inside TURN, The Unusual Reading Nook open library at Tattvaswayam"
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-8 lg:col-span-9 space-y-4">
+                      <div className="space-y-1">
+                        <span className="text-xs font-semibold text-[#B45309] dark:text-amber-400 block">
+                          Message from Our Founder &amp; Centre Leadership
+                        </span>
+                        <h2 className="text-2xl sm:text-3xl font-bold text-[#182230] dark:text-white font-editorial">
+                          &ldquo;Learners flourish when they are co-creators of knowledge—supported by warmth, inquiry, and genuine respect.&rdquo;
+                        </h2>
+                      </div>
+
+                      <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                        Dear Parents, at Tattvaswayam Open Learning Resource Centre &amp; Future Academy in Sampigehalli, Jakkur, we never measure a child by rote scores alone. Guided by Founder &amp; Managing Director <strong>Sandhya Gatti</strong> and Centre Head &amp; Chief Mentor <strong>Amrita</strong>, our facilitators sit beside learners across Inizio, Novitiate, Mezzo, and Adroit—helping each young person build clarity across Science, Mathematics, Literature, Philosophy, the Arts, and Out-of-Syllabus life skills.
+                      </p>
+
+                      <div className="pt-2 flex flex-wrap items-center justify-between gap-4 border-t border-[#E6E1D6] dark:border-slate-800">
+                        <div>
+                          <div className="font-bold text-sm text-[#182230] dark:text-white">
+                            Sandhya Gatti &amp; Amrita
+                          </div>
+                          <div className="text-xs text-slate-600 dark:text-slate-400">
+                            Founder &amp; Managing Director · Centre Head &amp; Chief Mentor
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => openAdmissionsModal('visit')}
+                          className="px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-[#FAF9F6] dark:hover:bg-slate-700 border border-[#D8D0C0] dark:border-slate-700 text-xs font-semibold text-[#182230] dark:text-slate-100 transition cursor-pointer"
+                        >
+                          Meet Our Mentors on Campus →
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Official Core Leadership & Facilitators Directory Strip */}
+                  <div className="pt-5 border-t border-[#E6E1D6] dark:border-slate-800">
+                    <span className="text-[11px] font-semibold text-[#B45309] dark:text-amber-400 block mb-3">
+                      Core Mentors &amp; Administration Team · Sampigehalli, Jakkur
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
+                      <div className="p-3 rounded-xl bg-white/85 dark:bg-slate-800/70 border border-[#E6E1D6] dark:border-slate-700">
+                        <div className="font-bold text-[#182230] dark:text-white">Sangeetha</div>
+                        <div className="text-[11px] text-slate-600 dark:text-slate-400">Chief Administrator</div>
+                      </div>
+                      <div className="p-3 rounded-xl bg-white/85 dark:bg-slate-800/70 border border-[#E6E1D6] dark:border-slate-700">
+                        <div className="font-bold text-[#182230] dark:text-white">Sandhya Padmanabhan</div>
+                        <div className="text-[11px] text-slate-600 dark:text-slate-400">Language &amp; Literature</div>
+                      </div>
+                      <div className="p-3 rounded-xl bg-white/85 dark:bg-slate-800/70 border border-[#E6E1D6] dark:border-slate-700">
+                        <div className="font-bold text-[#182230] dark:text-white">Sushmitha</div>
+                        <div className="text-[11px] text-slate-600 dark:text-slate-400">Mathematical Studies</div>
+                      </div>
+                      <div className="p-3 rounded-xl bg-white/85 dark:bg-slate-800/70 border border-[#E6E1D6] dark:border-slate-700">
+                        <div className="font-bold text-[#182230] dark:text-white">Shravani</div>
+                        <div className="text-[11px] text-slate-600 dark:text-slate-400">Early Childhood (Inizio)</div>
+                      </div>
+                      <div className="p-3 rounded-xl bg-white/85 dark:bg-slate-800/70 border border-[#E6E1D6] dark:border-slate-700">
+                        <div className="font-bold text-[#182230] dark:text-white">Divya Dogra</div>
+                        <div className="text-[11px] text-slate-600 dark:text-slate-400">Inclusive Learning</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div
-                    onClick={() => setActiveTab('portal')}
-                    className="p-5 rounded-2xl bg-white dark:bg-stone-900 border border-orange-200/80 dark:border-amber-950 shadow-xs space-y-2.5 cursor-pointer hover:border-orange-400 transition"
-                  >
-                    <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-950 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold">
-                      <Shield className="w-5 h-5" />
+                {/* Voices from Our Parent Community */}
+                <div className="space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+                    <div>
+                      <span className="text-xs font-semibold text-[#B45309] dark:text-amber-400 block">
+                        Bengaluru Families Share Their Experience
+                      </span>
+                      <h2 className="text-2xl sm:text-3xl font-bold text-[#182230] dark:text-slate-100 font-editorial mt-1">
+                        Voices from Our Parent Community
+                      </h2>
                     </div>
-                    <h4 className="font-extrabold text-sm text-stone-900 dark:text-stone-100">
-                      7 Role-Based Portals
-                    </h4>
-                    <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
-                      Tailored start screens for Student, Facilitator, Staff, Parent, Admin, Coordinator, and Principal with focused overviews.
-                    </p>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      Parents of Primary, Middle &amp; Senior School Students
+                    </span>
                   </div>
 
-                  <div
-                    onClick={() => setActiveTab('study')}
-                    className="p-5 rounded-2xl bg-white dark:bg-stone-900 border border-orange-200/80 dark:border-amber-950 shadow-xs space-y-2.5 cursor-pointer hover:border-orange-400 transition"
-                  >
-                    <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
-                      <Sparkles className="w-5 h-5" />
-                    </div>
-                    <h4 className="font-extrabold text-sm text-stone-900 dark:text-stone-100">
-                      AI Study & Lesson Lab
-                    </h4>
-                    <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
-                      Dedicated inquiry assistant, automated 45-minute lesson schema generator, and self-testing quizzes for all 13 disciplines.
-                    </p>
-                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <article className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800 flex flex-col justify-between gap-5">
+                      <div className="space-y-3">
+                        <Quote className="w-5 h-5 text-[#B45309]/60 dark:text-amber-400/60" />
+                        <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                          &ldquo;Moving from another city made us anxious, but Aarav&apos;s class teacher called us weekly during his first month. Because classes have only 18 students, he went from quiet observer to leading his Grade 4 science group in two terms.&rdquo;
+                        </p>
+                      </div>
+                      <div className="pt-4 border-t border-[#F4EFE6] dark:border-slate-800">
+                        <div className="font-bold text-sm text-[#182230] dark:text-white">
+                          Mrs. Ananya Deshmukh
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
+                          Mother of Aarav, Grade 4 · Sahakar Nagar
+                        </div>
+                      </div>
+                    </article>
 
-                  <div
-                    onClick={() => setActiveTab('transit')}
-                    className="p-5 rounded-2xl bg-white dark:bg-stone-900 border border-orange-200/80 dark:border-amber-950 shadow-xs space-y-2.5 cursor-pointer hover:border-orange-400 transition"
-                  >
-                    <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
-                      <Bus className="w-5 h-5" />
-                    </div>
-                    <h4 className="font-extrabold text-sm text-stone-900 dark:text-stone-100">
-                      Smart Transit & Gate 2
-                    </h4>
-                    <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
-                      Live GPS Route 14 fleet tracker, digital NFC badges, contactless gate check-in, and instant parental arrival pings.
-                    </p>
-                  </div>
+                    <article className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800 flex flex-col justify-between gap-5">
+                      <div className="space-y-3">
+                        <Quote className="w-5 h-5 text-[#B45309]/60 dark:text-amber-400/60" />
+                        <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                          &ldquo;Both of us work full-time in Hebbal, so knowing exactly when Route 14 reaches Yelahanka and seeing the gate check-in message gives us enormous relief. Krishvika equally loves her Mathematics lab and classical dance periods.&rdquo;
+                        </p>
+                      </div>
+                      <div className="pt-4 border-t border-[#F4EFE6] dark:border-slate-800">
+                        <div className="font-bold text-sm text-[#182230] dark:text-white">
+                          Mr. Karthik &amp; Mrs. Meera Nair
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
+                          Parents of Krishvika, Grade 8 · Yelahanka New Town
+                        </div>
+                      </div>
+                    </article>
 
-                  <div
-                    onClick={() => setActiveTab('rep')}
-                    className="p-5 rounded-2xl bg-white dark:bg-stone-900 border border-orange-200/80 dark:border-amber-950 shadow-xs space-y-2.5 cursor-pointer hover:border-orange-400 transition"
-                  >
-                    <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
-                      <Printer className="w-5 h-5" />
-                    </div>
-                    <h4 className="font-extrabold text-sm text-stone-900 dark:text-stone-100">
-                      Official Transcripts
-                    </h4>
-                    <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
-                      Printable A4 report card with institutional crest, 13-subject marks breakdown, AI remark, and Principal Dr. Shenoy's seal.
-                    </p>
+                    <article className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800 flex flex-col justify-between gap-5">
+                      <div className="space-y-3">
+                        <Quote className="w-5 h-5 text-[#B45309]/60 dark:text-amber-400/60" />
+                        <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                          &ldquo;In Grade 10, most schools narrow everything down to exam drills. Here, Vivan&apos;s mentors keep his physics and mathematics rigorous while encouraging philosophy, robotics, and sports. The term reports tell us how he thinks, not just a percentage.&rdquo;
+                        </p>
+                      </div>
+                      <div className="pt-4 border-t border-[#F4EFE6] dark:border-slate-800">
+                        <div className="font-bold text-sm text-[#182230] dark:text-white">
+                          Dr. Ramesh Sharma
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
+                          Father of Vivan, Grade 10 · Amruthahalli
+                        </div>
+                      </div>
+                    </article>
                   </div>
                 </div>
-              </div>
+              </section>
+
+              {/* Section 5: Public School Announcements & Office Contact + Portal Entry */}
+              <section className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  <div className="lg:col-span-7 p-6 rounded-2xl bg-white dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800 space-y-4">
+                    <div className="flex items-center justify-between border-b border-[#F4EFE6] dark:border-slate-800 pb-3">
+                      <div>
+                        <span className="text-xs font-semibold text-[#B45309] dark:text-amber-400 block">
+                          School Bulletin Board
+                        </span>
+                        <h2 className="text-xl font-bold text-[#182230] dark:text-slate-100 font-editorial">
+                          Public School Announcements
+                        </h2>
+                      </div>
+                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                        Jakkur Campus
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {(publicSchoolInfo?.announcements || []).map((ann) => (
+                        <article
+                          key={ann.id}
+                          className="p-4 rounded-xl bg-[#FAF9F6] dark:bg-slate-800/50 border border-[#E6E1D6] dark:border-slate-700 space-y-1.5"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                            <span className="font-semibold text-[#B45309] dark:text-amber-400">
+                              {ann.category}
+                            </span>
+                            <span className="text-slate-500 dark:text-slate-400 font-mono">
+                              {ann.date}
+                            </span>
+                          </div>
+                          <h3 className="font-bold text-sm text-[#182230] dark:text-slate-100">
+                            {ann.title}
+                          </h3>
+                          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                            {ann.content}
+                          </p>
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="lg:col-span-5 p-6 rounded-2xl bg-[#F4EFE6] dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800 space-y-4">
+                    <div>
+                      <span className="text-xs font-semibold text-[#B45309] dark:text-amber-400 block">
+                        Admissions &amp; School Office
+                      </span>
+                      <h2 className="text-xl font-bold text-[#182230] dark:text-slate-100 font-editorial">
+                        School Contact Details
+                      </h2>
+                    </div>
+
+                    <div className="space-y-2.5 text-xs text-slate-700 dark:text-slate-300">
+                      <p className="flex items-start gap-2">
+                        <MapPin className="w-4 h-4 text-[#B45309] shrink-0 mt-0.5" />
+                        <span>{publicSchoolInfo?.address || '#2060, Sampigehalli, Jakkur, Bengaluru 560064'}</span>
+                      </p>
+                      <p className="flex items-center gap-2">
+                        <Phone className="w-4 h-4 text-[#B45309] shrink-0" />
+                        <span>{publicSchoolInfo?.phone || '+91-76250-03355'}</span>
+                      </p>
+                      <p className="flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-[#B45309] shrink-0" />
+                        <span>{publicSchoolInfo?.email || 'info@tattvaswayam.com'}</span>
+                      </p>
+                      <p className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-[#B45309] shrink-0" />
+                        <span>{publicSchoolInfo?.hours || 'Mon – Fri · 8:30 AM – 3:30 PM'}</span>
+                      </p>
+                    </div>
+
+                    <div className="pt-3 border-t border-[#E6E1D6] dark:border-slate-800 space-y-2.5">
+                      <p className="text-xs text-slate-600 dark:text-slate-400">
+                        {sessionState.state === 'REGISTERED'
+                          ? `Signed in as ${currentUserProfile?.name}. Access your role workspace cleanly.`
+                          : 'Registered parents, students, facilitators, and staff can sign in to view Bus Tracker, Homework, Calendar, and Progress Reports.'}
+                      </p>
+                      {sessionState.state !== 'UNREGISTERED' && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('portal')}
+                          className="w-full px-4 py-2.5 rounded-xl bg-[#182230] dark:bg-amber-600 hover:bg-[#243247] text-white font-semibold text-xs transition flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <span>
+                            {sessionState.state === 'REGISTERED'
+                              ? 'Open My Portal Workspace'
+                              : 'Sign In to Family & Staff Portal'}
+                          </span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </section>
             </div>
           )}
 
-          {/* TAB 2: CAMPUS HOLOGRAM */}
+          {/* TAB 2: EXPLORE OUR JAKKUR CAMPUS */}
           {activeTab === 'campus' && (
-            <div className="space-y-4">
-              <div className="p-5 rounded-2xl bg-white dark:bg-stone-900 border border-orange-200 dark:border-amber-950 shadow-xs flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-extrabold text-stone-900 dark:text-stone-100">
-                    Jakkur Campus Digital Twin & Hologram
-                  </h2>
-                  <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
-                    Modeled from physical architectural scans of Tattvasayam Open Learning Resource Centre. Drag left or right to orbit, scroll to zoom.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-orange-100 dark:bg-stone-800 text-orange-800 dark:text-orange-300">
-                    360° Orbit Mode
-                  </span>
-                </div>
-              </div>
-
-              <CampusHologram isDark={isDark} />
-            </div>
-          )}
-
-          {/* TAB 3: LIVE TRANSIT TELEMETRY */}
-          {activeTab === 'transit' && (
-            <div className="space-y-6">
-              <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-stone-900 border border-orange-200 dark:border-amber-950 shadow-xs flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <h2 className="text-xl sm:text-2xl font-extrabold text-stone-900 dark:text-stone-100">
-                      Route 14 Real-Time Fleet Telemetry
+            sessionState.state === 'REGISTERED' ? (
+              <div className="space-y-4 animate-view-enter">
+                <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-xl sm:text-2xl font-bold text-[#182230] dark:text-slate-100 font-editorial">
+                      Explore Our Jakkur Campus
                     </h2>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                      Walk through Tattvaswayam&apos;s Open Learning Resource Centre, science labs, and courtyard. Drag to look around or choose a building below.
+                    </p>
                   </div>
-                  <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">
-                    Live GPS tracking: Jakkur Plantation Road ⇄ Sahakara Nagar • Dedicated bus fleet monitoring & parental arrival notifications.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => {
-                      if (!state.currentUser) {
-                        handleLoginSuccess('pvivan');
-                      } else {
-                        setActiveTab('portal');
-                      }
-                    }}
-                    className="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-xs transition flex items-center gap-2"
+                    type="button"
+                    onClick={() => openAdmissionsModal('visit')}
+                    className="px-4 py-2 rounded-xl bg-[#B45309] hover:bg-[#92400E] text-white font-semibold text-xs transition cursor-pointer whitespace-nowrap"
                   >
-                    <Bus className="w-4 h-4" />
-                    <span>Parent Transit Portal</span>
+                    Book an In-Person Tour
                   </button>
                 </div>
-              </div>
 
-              <LiveTransit
-                busRoute={state.busRoute}
-                isDark={isDark}
-                currentUser={currentUserProfile}
-                transportRequests={state.transportRequests}
-                onNavigateToParentPortal={() => {
-                  if (!state.currentUser) {
-                    handleLoginSuccess('pvivan');
-                  } else {
-                    setActiveTab('portal');
-                  }
-                }}
-                onUpdateBusRoute={(updated) => {
-                  setState((prev) => ({
-                    ...prev,
-                    busRoute: updated,
-                  }));
-                }}
-                onRequestTransport={handleRequestTransport}
-                onUpdateTransportRequestStatus={handleUpdateTransportRequestStatus}
-                onPayTransportFee={handlePayTransportFee}
-                onSendNotification={(title, message, type) => {
-                  showToast(`${title}: ${message}`);
-                  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                  setState((prev) => ({
-                    ...prev,
-                    notifications: {
-                      ...prev.notifications,
-                      pvivan: [
-                        `${title}: ${message} (${timeStr})`,
-                        ...(prev.notifications['pvivan'] || []),
-                      ],
-                    },
-                    auditLogs: [
-                      {
-                        id: `AUD-BUS-${Date.now()}`,
-                        time: timeStr,
-                        action: `${title} - ${message}`,
-                        severity: type === 'alert' ? 'critical' : type === 'warning' ? 'warn' : 'info',
+                <CampusHologram isDark={isDark} />
+              </div>
+            ) : (
+              <AccessDeniedView
+                title={
+                  sessionState.state === 'UNREGISTERED'
+                    ? 'Account Not Registered'
+                    : 'Sign In Required'
+                }
+                message={
+                  sessionState.state === 'UNREGISTERED'
+                    ? 'Your account isn’t registered with the school. Please contact the school office for access.'
+                    : 'The interactive campus map workspace is reserved for signed-in school members.'
+                }
+                statusCode={sessionState.state === 'UNREGISTERED' ? 403 : 401}
+                onNavigateHome={() => setActiveTab('home')}
+                onNavigateLogin={() => setActiveTab('portal')}
+                showLoginAction={sessionState.state === 'UNAUTHENTICATED'}
+              />
+            )
+          )}
+
+          {/* TAB 3: SCHOOL BUS ROUTE & SAFE ARRIVAL TRACKER */}
+          {activeTab === 'transit' && (
+            sessionState.state === 'REGISTERED' && sessionState.allowedFeatures.includes('bus_tracker') ? (
+              <div className="space-y-6 animate-view-enter">
+                <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-slate-900 border border-[#E6E1D6] dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl sm:text-2xl font-bold text-[#182230] dark:text-slate-100 font-editorial">
+                      School Bus Route 14 &amp; Safe Arrival Tracker
+                    </h2>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                      Live GPS bus updates from Yelahanka and Sahakar Nagar to Jakkur Gate 2, with instant pickup and arrival alerts.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('portal')}
+                      className="px-4 py-2 rounded-xl bg-[#182230] dark:bg-amber-600 hover:bg-[#243247] dark:hover:bg-amber-500 text-white font-semibold text-xs transition flex items-center gap-2 cursor-pointer"
+                    >
+                      <Bus className="w-4 h-4" />
+                      <span>Open My Portal</span>
+                    </button>
+                  </div>
+                </div>
+
+                <LiveTransit
+                  busRoute={state.busRoute}
+                  isDark={isDark}
+                  currentUser={currentUserProfile}
+                  transportRequests={state.transportRequests}
+                  onNavigateToParentPortal={() => setActiveTab('portal')}
+                  onNavigateHome={() => setActiveTab('home')}
+                  onUpdateBusRoute={(updated) => {
+                    setState((prev) => ({
+                      ...prev,
+                      busRoute: updated,
+                    }));
+                  }}
+                  onRequestTransport={handleRequestTransport}
+                  onUpdateTransportRequestStatus={handleUpdateTransportRequestStatus}
+                  onPayTransportFee={handlePayTransportFee}
+                  onSendNotification={(title, message, type) => {
+                    showToast(`${title}: ${message}`);
+                    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    setState((prev) => ({
+                      ...prev,
+                      notifications: {
+                        ...prev.notifications,
+                        pvivan: [
+                          `${title}: ${message} (${timeStr})`,
+                          ...(prev.notifications['pvivan'] || []),
+                        ],
                       },
-                      ...prev.auditLogs.slice(0, 49),
+                      auditLogs: [
+                        {
+                          id: `AUD-BUS-${Date.now()}`,
+                          time: timeStr,
+                          action: `${title} - ${message}`,
+                          severity: type === 'alert' ? 'critical' : type === 'warning' ? 'warn' : 'info',
+                        },
+                        ...prev.auditLogs.slice(0, 49),
+                      ],
+                    }));
+                  }}
+                />
+              </div>
+            ) : (
+              <AccessDeniedView
+                title="Bus Tracker Access Denied"
+                message={
+                  sessionState.state === 'UNREGISTERED'
+                    ? 'Your account isn’t registered with the school. Please contact the school office for access.'
+                    : sessionState.state === 'UNAUTHENTICATED'
+                    ? 'Please sign in with a registered school account to view live school bus tracking.'
+                    : 'Your assigned school role does not include Bus Tracker permissions.'
+                }
+                statusCode={sessionState.state === 'UNAUTHENTICATED' ? 401 : 403}
+                onNavigateHome={() => setActiveTab('home')}
+                onNavigateLogin={() => setActiveTab('portal')}
+                showLoginAction={sessionState.state === 'UNAUTHENTICATED'}
+              />
+            )
+          )}
+
+          {/* TAB 3: HOMEWORK & STUDY LAB */}
+          {activeTab === 'study' && (
+            sessionState.state === 'REGISTERED' && sessionState.allowedFeatures.includes('homework') ? (
+              <AiStudyLabView
+                currentUser={currentUserProfile}
+                quizResults={state.quizResults}
+                onRecordQuizResult={(subject, topic, score, percentage) => {
+                  const timeStr = new Date().toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  });
+                  const studentId = state.currentUser || 'vivan';
+                  setState((prev) => ({
+                    ...prev,
+                    quizResults: [
+                      {
+                        userId: studentId,
+                        subject,
+                        topic,
+                        score,
+                        percentage,
+                        time: timeStr,
+                      },
+                      ...prev.quizResults,
+                    ],
+                  }));
+                  showToast(`Quiz result for ${subject} (${score}) recorded in academic record.`);
+                }}
+                aiLogs={state.aiLogs}
+                onRecordAiLog={(subject, question, answer) => {
+                  const timeStr = new Date().toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  });
+                  setState((prev) => ({
+                    ...prev,
+                    aiLogs: [
+                      {
+                        userId: state.currentUser || 'vivan',
+                        subject,
+                        question,
+                        answer,
+                        time: timeStr,
+                      },
+                      ...prev.aiLogs.slice(0, 49),
                     ],
                   }));
                 }}
+                onNavigateToPortal={() => setActiveTab('portal')}
+                onNavigateHome={() => setActiveTab('home')}
               />
-            </div>
-          )}
-
-          {/* TAB 3: DEDICATED AI STUDY LAB */}
-          {activeTab === 'study' && (
-            <AiStudyLabView
-              currentUser={currentUserProfile}
-              quizResults={state.quizResults}
-              onRecordQuizResult={(subject, topic, score, percentage) => {
-                const timeStr = new Date().toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                });
-                const studentId = state.currentUser || 'vivan';
-                setState((prev) => ({
-                  ...prev,
-                  quizResults: [
-                    {
-                      userId: studentId,
-                      subject,
-                      topic,
-                      score,
-                      percentage,
-                      time: timeStr,
-                    },
-                    ...prev.quizResults,
-                  ],
-                }));
-                showToast(`Quiz result for ${subject} (${score}) recorded in academic record.`);
-              }}
-              aiLogs={state.aiLogs}
-              onRecordAiLog={(subject, question, answer) => {
-                const timeStr = new Date().toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                });
-                setState((prev) => ({
-                  ...prev,
-                  aiLogs: [
-                    {
-                      userId: state.currentUser || 'vivan',
-                      subject,
-                      question,
-                      answer,
-                      time: timeStr,
-                    },
-                    ...prev.aiLogs.slice(0, 49),
-                  ],
-                }));
-              }}
-              onNavigateToPortal={() => setActiveTab('portal')}
-            />
+            ) : (
+              <AccessDeniedView
+                title="Homework & Study Access Denied"
+                message={
+                  sessionState.state === 'UNREGISTERED'
+                    ? 'Your account isn’t registered with the school. Please contact the school office for access.'
+                    : sessionState.state === 'UNAUTHENTICATED'
+                    ? 'Please sign in with a registered school account to view Homework & Study Support.'
+                    : 'Your assigned school role does not include Homework & Study permissions.'
+                }
+                statusCode={sessionState.state === 'UNAUTHENTICATED' ? 401 : 403}
+                onNavigateHome={() => setActiveTab('home')}
+                onNavigateLogin={() => setActiveTab('portal')}
+                showLoginAction={sessionState.state === 'UNAUTHENTICATED'}
+              />
+            )
           )}
 
           {/* TAB 4: ACADEMIC CALENDAR */}
           {activeTab === 'cal' && (
-            <CalendarView
-              events={state.events}
-              counseling={state.counseling}
-              currentUser={currentUserProfile}
-              onToast={showToast}
-              onAddEvent={(newEvent) => {
-                setState((prev) => ({
-                  ...prev,
-                  events: [...prev.events, newEvent],
-                }));
-                showToast(`Event "${newEvent.title}" published to academic calendar.`);
-              }}
-            />
+            sessionState.state === 'REGISTERED' && sessionState.allowedFeatures.includes('calendar') ? (
+              <CalendarView
+                events={state.events}
+                counseling={state.counseling}
+                currentUser={currentUserProfile}
+                onToast={showToast}
+                onNavigateToPortal={() => setActiveTab('portal')}
+                onNavigateHome={() => setActiveTab('home')}
+                onAddEvent={(newEvent) => {
+                  setState((prev) => ({
+                    ...prev,
+                    events: [...prev.events, newEvent],
+                  }));
+                  showToast(`Event "${newEvent.title}" published to academic calendar.`);
+                }}
+              />
+            ) : (
+              <AccessDeniedView
+                title="School Calendar Access Denied"
+                message={
+                  sessionState.state === 'UNREGISTERED'
+                    ? 'Your account isn’t registered with the school. Please contact the school office for access.'
+                    : sessionState.state === 'UNAUTHENTICATED'
+                    ? 'Please sign in with a registered school account to view the School Calendar.'
+                    : 'Your assigned school role does not include Calendar permissions.'
+                }
+                statusCode={sessionState.state === 'UNAUTHENTICATED' ? 401 : 403}
+                onNavigateHome={() => setActiveTab('home')}
+                onNavigateLogin={() => setActiveTab('portal')}
+                showLoginAction={sessionState.state === 'UNAUTHENTICATED'}
+              />
+            )
           )}
 
           {/* TAB 5: 13-SUBJECT REPORTS & OFFICIAL TRANSCRIPTS */}
           {activeTab === 'rep' && (
-            <ReportsView
-              currentUser={currentUserProfile}
-              onNavigateToPortal={() => setActiveTab('portal')}
-              attendanceRecords={state.attendanceRecords}
-            />
+            sessionState.state === 'REGISTERED' && sessionState.allowedFeatures.includes('reports') ? (
+              <ReportsView
+                currentUser={currentUserProfile}
+                onNavigateToPortal={() => setActiveTab('portal')}
+                onNavigateHome={() => setActiveTab('home')}
+                attendanceRecords={state.attendanceRecords}
+              />
+            ) : (
+              <AccessDeniedView
+                title="Progress Reports Access Denied"
+                message={
+                  sessionState.state === 'UNREGISTERED'
+                    ? 'Your account isn’t registered with the school. Please contact the school office for access.'
+                    : sessionState.state === 'UNAUTHENTICATED'
+                    ? 'Please sign in with a registered school account to view Progress Reports.'
+                    : 'Your assigned school role does not include Progress Reports permissions.'
+                }
+                statusCode={sessionState.state === 'UNAUTHENTICATED' ? 401 : 403}
+                onNavigateHome={() => setActiveTab('home')}
+                onNavigateLogin={() => setActiveTab('portal')}
+                showLoginAction={sessionState.state === 'UNAUTHENTICATED'}
+              />
+            )
           )}
 
           {/* TAB 6: DEDICATED OTP SITE / AUTHENTICATOR HUB (Restricted to Ms. Sandhya & Ms. Amrita) */}
           {activeTab === 'otp' && (
-            <OtpHubView
-              currentUser={currentUserProfile}
-              onNavigateToLogin={(targetKey) => {
-                if (targetKey) setPreselectedLoginUser(targetKey);
-                setActiveTab('portal');
-              }}
-              onNavigateToHome={() => setActiveTab('home')}
-            />
+            isSuperAdmin ? (
+              <OtpHubView
+                currentUser={currentUserProfile}
+                onNavigateToLogin={(targetKey) => {
+                  if (targetKey) setPreselectedLoginUser(targetKey);
+                  setActiveTab('portal');
+                }}
+                onNavigateToHome={() => setActiveTab('home')}
+              />
+            ) : (
+              <AccessDeniedView
+                title="OTP Directory Access Denied"
+                message="The OTP Authenticator Directory is restricted to authorized school administrators."
+                statusCode={sessionState.state === 'UNAUTHENTICATED' ? 401 : 403}
+                onNavigateHome={() => setActiveTab('home')}
+                onNavigateLogin={() => setActiveTab('portal')}
+                showLoginAction={sessionState.state === 'UNAUTHENTICATED'}
+              />
+            )
           )}
 
           {/* TAB 7: PORTAL WORKSPACES */}
           {activeTab === 'portal' && (
             <div>
-              {!state.currentUser ? (
+              {sessionState.state === 'UNREGISTERED' ? (
+                <AccessDeniedView
+                  title="Your account isn’t registered with the school"
+                  message="Your account isn’t registered with the school. Please contact the school office for access. In the meantime, you can view public school details and announcements on the School page."
+                  statusCode={403}
+                  onNavigateHome={() => setActiveTab('home')}
+                />
+              ) : sessionState.state !== 'REGISTERED' || !currentUserProfile ? (
                 <LoginView
                   initialUserKey={preselectedLoginUser}
                   onLoginSuccess={handleLoginSuccess}
+                  onAuthSessionResolved={handleAuthSessionResolved}
+                  expiredSessionMessage={expiredSessionMessage}
                   customPasswords={state.customPasswords}
                   customMpins={state.customMpins}
                   failedAttempts={state.failedAttempts}
@@ -2315,6 +2989,48 @@ export default function App() {
                 />
               ) : (
                 <div className="space-y-6">
+                  {/* Multi-Role Workspace Switcher when a user holds multiple roles (e.g., Staff/Facilitator + Parent) */}
+                  {sessionState.roles.length > 1 && (
+                    <div className="p-4 rounded-2xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+                      <div>
+                        <span className="font-bold text-[#182230] dark:text-amber-100 block">
+                          Multiple School Roles Active ({sessionState.roles.join(' + ')})
+                        </span>
+                        <span className="text-slate-600 dark:text-amber-200/80">
+                          Switch between your authorized workspaces without signing out.
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {sessionState.roles.map((r) => {
+                          const isCurrent = currentUserProfile.role === r;
+                          const label =
+                            r === 'teacher'
+                              ? 'Facilitator View'
+                              : r === 'parent'
+                              ? 'Parent View'
+                              : r === 'support'
+                              ? 'Staff / Coordinator View'
+                              : r === 'admin'
+                              ? 'Admin View'
+                              : `${r.charAt(0).toUpperCase() + r.slice(1)} View`;
+                          return (
+                            <button
+                              key={r}
+                              type="button"
+                              onClick={() => setActivePortalRole(r)}
+                              className={`px-3 py-1.5 rounded-xl font-semibold transition cursor-pointer ${
+                                isCurrent
+                                  ? 'bg-[#B45309] text-white shadow-xs'
+                                  : 'bg-white dark:bg-slate-800 border border-[#E6E1D6] dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-amber-100/60'
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   {/* Principal View */}
                   {currentUserProfile?.role === 'principal' && (
                     <PrincipalDashboard
@@ -2342,7 +3058,7 @@ export default function App() {
                       onBookCounseling={handleBookCounseling}
                       leaveRequests={state.leaveRequests}
                       onDigitalIdTap={handleDigitalIdTap}
-                      chatHistory={state.chatHistory[state.currentUser] || []}
+                      chatHistory={state.chatHistory[state.currentUser || currentUserProfile.userKey || ''] || []}
                       onSendMessage={(text) => {
                         const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                         setState((prev) => {
@@ -2424,6 +3140,7 @@ export default function App() {
                       onRequestTransport={handleRequestTransport}
                       onUpdateTransportRequestStatus={handleUpdateTransportRequestStatus}
                       onPayTransportFee={handlePayTransportFee}
+                      onRefreshSession={refreshAuthSession}
                     />
                   )}
 
@@ -2480,7 +3197,7 @@ export default function App() {
                       onBookCounseling={handleBookCounseling}
                       leaveRequests={state.leaveRequests}
                       onApplyLeave={handleApplyLeave}
-                      notifications={state.notifications[state.currentUser] || []}
+                      notifications={state.notifications[state.currentUser || currentUserProfile.userKey || ''] || []}
                       timetableSchedule={state.timetables}
                       busRoute={state.busRoute}
                       attendanceRecords={state.attendanceRecords}
@@ -2602,6 +3319,14 @@ export default function App() {
           onSelectRole={handleSelectRoleFromTour}
         />
 
+        {/* Parent Inquiry & Admission Registration Modal */}
+        <AdmissionsInquiryModal
+          isOpen={isAdmissionsModalOpen}
+          initialMode={admissionsModalMode}
+          onClose={() => setIsAdmissionsModalOpen(false)}
+          onSuccessToast={showToast}
+        />
+
         {/* Interactive OTP Generator Modal */}
         <OtpGeneratorModal
           isOpen={isOtpGeneratorOpen}
@@ -2613,74 +3338,174 @@ export default function App() {
           }}
         />
 
-        {/* Polished School Footer */}
-        <footer className="border-t border-orange-200/60 dark:border-amber-950/60 bg-white/70 dark:bg-stone-900/70 py-8 text-xs text-stone-500 dark:text-stone-400 mt-12 backdrop-blur-md">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-4">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-orange-100 dark:border-stone-800 pb-6">
+        {/* Warm Editorial School Footer */}
+        <footer className="border-t border-[#E6E1D6] dark:border-slate-800 bg-white dark:bg-slate-900 py-8 text-xs text-slate-500 dark:text-slate-400 mt-12 no-print">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-5">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 border-b border-[#F4EFE6] dark:border-slate-800 pb-6">
               <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-lg bg-orange-600 text-white flex items-center justify-center font-serif font-black text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-6 h-6 rounded-md bg-[#182230] dark:bg-amber-600 text-white flex items-center justify-center font-editorial font-bold text-xs">
                     T
                   </div>
-                  <span className="font-extrabold text-sm text-stone-900 dark:text-stone-100 tracking-tight">
-                    TATTVASAYAM FUTURE ACADEMY
+                  <span className="font-bold text-sm text-[#182230] dark:text-slate-100 tracking-tight font-editorial">
+                    Tattvaswayam Open Learning Resource Centre &amp; Future Academy
                   </span>
                 </div>
-                <p className="text-[11px] text-stone-500">
-                  Centre of Integral Pedagogy & Emerging Sciences • Affiliated to CBSE & Cambridge Assessment
+                <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                  NEP 2020 Open Learning · CBSE, Cambridge &amp; NIOS Assessment Pathways · Inizio to Adroit (Ages 3.8–19 / Grades 1–12)
                 </p>
-                <div className="text-[11px] text-stone-400 flex items-center gap-1.5 pt-0.5">
-                  <MapPin className="w-3.5 h-3.5 text-orange-600" />
-                  <span>Jakkur Plantation Road, Yelahanka Sub-Division, Bengaluru, Karnataka 560064</span>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-2 gap-y-1 pt-0.5">
+                  <MapPin className="w-3.5 h-3.5 text-[#B45309] dark:text-amber-400 shrink-0" />
+                  <span>#2060, Sampigehalli, Jakkur, Bengaluru 560064</span>
+                  <span aria-hidden="true">·</span>
+                  <span>+91-76250-03355</span>
+                  <span aria-hidden="true">·</span>
+                  <span>info@tattvaswayam.com</span>
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-3 text-xs">
                 <button
-                  onClick={() => setIsGuidedTourOpen(true)}
-                  className="font-bold text-orange-600 hover:underline flex items-center gap-1"
+                  type="button"
+                  onClick={() => openAdmissionsModal('admissions')}
+                  className="font-semibold text-[#B45309] dark:text-amber-400 hover:underline cursor-pointer"
                 >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Assembly Presentation Guide</span>
+                  Admissions 2026–27
                 </button>
-                <span>•</span>
+                <span aria-hidden="true">·</span>
                 <button
-                  onClick={() => setActiveTab('rep')}
-                  className="hover:text-orange-600 transition"
+                  type="button"
+                  onClick={() => openAdmissionsModal('visit')}
+                  className="hover:text-[#182230] dark:hover:text-slate-200 transition cursor-pointer"
                 >
-                  13-Subject Transcripts
+                  Book a Campus Visit
                 </button>
-                <span>•</span>
-                <button
-                  onClick={() => setActiveTab('cal')}
-                  className="hover:text-orange-600 transition"
-                >
-                  Academic Calendar
-                </button>
+                {sessionState.state === 'REGISTERED' &&
+                  sessionState.allowedFeatures.includes('reports') && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('rep')}
+                        className="hover:text-[#182230] dark:hover:text-slate-200 transition cursor-pointer"
+                      >
+                        Progress Reports
+                      </button>
+                    </>
+                  )}
+                {sessionState.state === 'REGISTERED' &&
+                  sessionState.allowedFeatures.includes('calendar') && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('cal')}
+                        className="hover:text-[#182230] dark:hover:text-slate-200 transition cursor-pointer"
+                      >
+                        School Calendar
+                      </button>
+                    </>
+                  )}
+                {sessionState.state === 'REGISTERED' && sessionState.isDemoSession && (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsGuidedTourOpen(true)}
+                      className="hover:text-[#182230] dark:hover:text-slate-200 transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <Compass className="w-3.5 h-3.5 text-[#B45309] dark:text-amber-400" />
+                      <span>Quick Demo Tour</span>
+                    </button>
+                  </>
+                )}
                 {isSuperAdmin && (
                   <>
-                    <span>•</span>
+                    <span aria-hidden="true">·</span>
                     <button
+                      type="button"
                       onClick={() => setActiveTab('otp')}
-                      className="hover:text-orange-600 dark:hover:text-orange-400 transition font-semibold"
+                      className="hover:text-[#182230] dark:hover:text-slate-200 transition font-semibold cursor-pointer"
                     >
-                      Super Admin OTP Hub
+                      Super Admin OTP Directory
                     </button>
                   </>
                 )}
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-stone-400">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-[11px] text-slate-500 dark:text-slate-400">
               <div>
-                © 2026 Tattvasayam Future Academy. All rights reserved. System Telemetry & Diagnostics Active.
+                © 2026 Tattvaswayam Open Learning Resource Centre &amp; Future Academy, Sampigehalli, Jakkur, Bengaluru.
               </div>
-              <div className="font-mono text-[10px]">
-                Built for High Reliability & Zero Console Errors • Bangalore North
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setThemeMode((prev) => {
+                      if (prev === 'system') {
+                        showToast('Theme set to Dark Mode.');
+                        return 'dark';
+                      }
+                      if (prev === 'dark') {
+                        showToast('Theme set to Light Mode.');
+                        return 'light';
+                      }
+                      showToast('Theme synced to System OS.');
+                      return 'system';
+                    });
+                  }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[#E6E1D6] dark:border-slate-700 hover:bg-[#F4EFE6] dark:hover:bg-slate-800 text-[#182230] dark:text-slate-300 font-medium transition cursor-pointer"
+                >
+                  {themeMode === 'system' ? (
+                    <Laptop className="w-3.5 h-3.5 text-[#B45309]" />
+                  ) : isDark ? (
+                    <Sun className="w-3.5 h-3.5 text-amber-400" />
+                  ) : (
+                    <Moon className="w-3.5 h-3.5 text-[#182230]" />
+                  )}
+                  <span>
+                    Theme: {themeMode === 'system' ? 'Auto' : themeMode === 'dark' ? 'Dark' : 'Light'}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsProjectorMode((p) => !p)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border font-medium transition cursor-pointer ${
+                    isProjectorMode
+                      ? 'border-[#B45309] bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300'
+                      : 'border-[#E6E1D6] dark:border-slate-700 hover:bg-[#F4EFE6] dark:hover:bg-slate-800 text-[#182230] dark:text-slate-300'
+                  }`}
+                >
+                  <Tv className="w-3.5 h-3.5" />
+                  <span>{isProjectorMode ? 'Projector: On' : 'Projector Mode'}</span>
+                </button>
+
+                <a
+                  href="/tattvasayam-future-academy-portal.zip"
+                  download="tattvasayam-future-academy-portal.zip"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[#E6E1D6] dark:border-slate-700 hover:bg-[#F4EFE6] dark:hover:bg-slate-800 text-[#182230] dark:text-slate-300 font-medium transition"
+                >
+                  <Archive className="w-3.5 h-3.5" />
+                  <span>School Portal Archive</span>
+                </a>
               </div>
             </div>
           </div>
         </footer>
+
+        {/* Seamless Cross-Role Floating Demo Switcher ONLY when Signed In with a Demo Session */}
+        {sessionState.state === 'REGISTERED' && sessionState.isDemoSession && currentUserProfile && (
+          <RoleSwitcherBar
+            currentUser={currentUserProfile}
+            allowedFeatures={sessionState.allowedFeatures}
+            onSwitchRole={(userKey) => {
+              handleLoginSuccess(userKey, activeTab === 'transit');
+            }}
+            onNavigateTab={(t) => setActiveTab(t)}
+          />
+        )}
 
         {/* Full-Screen Emergency Warning Overlay across all active student / teacher sessions */}
         {state.emergencyLockdown?.active &&
@@ -2691,7 +3516,7 @@ export default function App() {
               onSwitchToAuthority={(target) => {
                 handleLoginSuccess(target === 'principal' ? 'principal' : 'sai');
                 showToast(
-                  `Switched to ${target === 'principal' ? 'Dr. Shenoy (Principal)' : 'Mr. Sai (Gate Security)'} to manage campus lockdown.`
+                  `Switched to ${target === 'principal' ? 'Ms. Amrita (Centre Head)' : 'Mr. Sai (Gate Security)'} to manage campus lockdown.`
                 );
               }}
             />

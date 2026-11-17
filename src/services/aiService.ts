@@ -129,7 +129,7 @@ export class AiService {
       if (q.includes('gravity') || q.includes('newton') || q.includes('force')) {
         return `Newton's Universal Law of Gravitation establishes that every mass attracts every other mass with force F = G(m1·m2)/r². At Earth's surface, this resolves to standard acceleration g ≈ 9.81 m/s². The gravitational potential energy is defined as U = -G(M·m)/r.`;
       }
-      return `Physics at Tattvasayam Future Academy emphasizes fundamental first principles and experimental verification. In ${subject}, "${question}" addresses core physical conservation laws (momentum, mass-energy, and charge conservation). Consider both the microscopic molecular mechanism and the macroscopic mathematical model.`;
+      return `Physics at Tattvaswayam Future Academy emphasizes fundamental first principles and experimental verification. In ${subject}, "${question}" addresses core physical conservation laws (momentum, mass-energy, and charge conservation). Consider both the microscopic molecular mechanism and the macroscopic mathematical model.`;
     }
 
     if (subject === 'Mathematics') {
@@ -140,14 +140,14 @@ export class AiService {
     }
 
     if (subject === 'Philosophy') {
-      return `Philosophical inquiry at Tattvasayam investigates epistemological justification, ethics of autonomous systems, and ontology. Regarding "${question}": Evaluate both deontological frameworks (duty and moral principles) and utilitarian perspectives (net systemic outcome), synthesized through ancient Indian darshanas and modern cognitive theories.`;
+      return `Philosophical inquiry at Tattvaswayam investigates epistemological justification, ethics of autonomous systems, and ontology. Regarding "${question}": Evaluate both deontological frameworks (duty and moral principles) and utilitarian perspectives (net systemic outcome), synthesized through ancient Indian darshanas and modern cognitive theories.`;
     }
 
-    return `Tattvasayam Future Academy Academic Study Insight [${subject}]: Regarding "${question}":\nKey takeaway: Examine the foundational concept, its primary mathematical or contextual relationship, and verify real-world application in laboratory or field work. Always cross-reference with faculty lecture notes in Room 101-105.`;
+    return `Tattvaswayam Future Academy Academic Study Insight [${subject}]: Regarding "${question}":\nKey takeaway: Examine the foundational concept, its primary mathematical or contextual relationship, and verify real-world application in laboratory or field work. Always cross-reference with faculty lecture notes in Room 101-105.`;
   }
 
   private static getFallbackLessonPlan(topic: string): string {
-    return `Tattvasayam Future Academy — 45-Minute Lesson Plan
+    return `Tattvaswayam Future Academy — 45-Minute Lesson Plan
 Topic: ${topic}
 Target Cohort: Secondary / Senior Academic Division
 
@@ -264,7 +264,7 @@ Target Cohort: Secondary / Senior Academic Division
         explanation: 'Accurate citations ensure academic integrity, verifiable provenance, and scientific repeatability.',
       },
       {
-        q: 'What is the primary indicator of mastery in Tattvasayam’s 13-subject neural assessment framework?',
+        q: 'What is the primary indicator of mastery in Tattvaswayam’s 13-subject neural assessment framework?',
         options: ['Application of conceptual schemas to novel, complex scenarios', 'Memorization of question bank answers', 'Speed of submission without precision', 'Passive lecture attendance alone'],
         answer: 0,
         explanation: 'True mastery involves transferring core mental models to solve complex, novel challenges.',
@@ -277,6 +277,6 @@ Target Cohort: Secondary / Senior Academic Division
     const top = sorted[0];
     const lowest = sorted[sorted.length - 1];
 
-    return `${studentName} (${grade}) demonstrates outstanding academic poise at Tattvasayam Future Academy. Exceptional intellectual agility is evident in ${top.subject} (${top.score}%), reflecting profound analytical acumen and consistent investigative dedication. With purposeful focus on bridging conceptual depth in ${lowest.subject} (${lowest.score}%) through structured peer workshops and library resource engagement, ${studentName} is poised for continued scholastic distinction across our neural interdisciplinary curriculum.`;
+    return `${studentName} (${grade}) demonstrates outstanding academic poise at Tattvaswayam Future Academy. Exceptional intellectual agility is evident in ${top.subject} (${top.score}%), reflecting profound analytical acumen and consistent investigative dedication. With purposeful focus on bridging conceptual depth in ${lowest.subject} (${lowest.score}%) through structured peer workshops and library resource engagement, ${studentName} is poised for continued scholastic distinction across our neural interdisciplinary curriculum.`;
   }
 }

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -18,6 +18,8 @@ import {
 import { CalendarEvent, CounselingRequest, UserProfile } from '../types';
 import { GoogleCalendarSync } from './GoogleCalendarSync';
 import { GoogleCalendarItem } from '../services/googleCalendarService';
+import { AuthService, ApiAccessError } from '../services/authService';
+import { AccessDeniedView } from './AccessDeniedView';
 import {
   generateIcsContent,
   downloadIcsFile,
@@ -30,6 +32,8 @@ interface CalendarViewProps {
   currentUser: UserProfile | null;
   onAddEvent?: (event: CalendarEvent) => void;
   onToast?: (msg: string) => void;
+  onNavigateToPortal?: () => void;
+  onNavigateHome?: () => void;
 }
 
 const MONTH_NAMES = [
@@ -56,10 +60,49 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   currentUser,
   onAddEvent,
   onToast,
+  onNavigateToPortal,
+  onNavigateHome,
 }) => {
   const [currentYear, setCurrentYear] = useState(2026);
   const [currentMonth, setCurrentMonth] = useState(9); // 0-indexed: 9 = October
   const [selectedDate, setSelectedDate] = useState<string>('2026-10-15');
+
+  const [canEditCalendar, setCanEditCalendar] = useState(false);
+  const [serverEvents, setServerEvents] = useState<CalendarEvent[] | null>(null);
+  const [loadingAccess, setLoadingAccess] = useState(true);
+  const [accessError, setAccessError] = useState<{ status: number; message: string } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    if (!currentUser) {
+      setLoadingAccess(false);
+      return;
+    }
+    setLoadingAccess(true);
+    setAccessError(null);
+
+    AuthService.fetchCalendar()
+      .then((res) => {
+        if (!active) return;
+        setCanEditCalendar(Boolean(res.canEdit));
+        setServerEvents(res.events || null);
+      })
+      .catch((err: unknown) => {
+        if (!active) return;
+        if (err instanceof ApiAccessError) {
+          setAccessError({ status: err.status, message: err.message });
+        } else {
+          setAccessError({ status: 403, message: 'Access denied to School Calendar.' });
+        }
+      })
+      .finally(() => {
+        if (active) setLoadingAccess(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [currentUser?.id, currentUser?.role, currentUser?.roles?.join(',')]);
 
   // Filter state
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<
@@ -80,9 +123,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const [newType, setNewType] = useState<'holiday' | 'exam' | 'expo' | 'counseling'>('exam');
   const [newDesc, setNewDesc] = useState('');
 
-  const triggerToast = (msg: string) => {
-    if (onToast) onToast(msg);
-  };
+  const triggerToast = useCallback(
+    (msg: string) => {
+      if (onToast) onToast(msg);
+    },
+    [onToast]
+  );
+
+  const handleGoogleEventsUpdated = useCallback((items: GoogleCalendarItem[]) => {
+    setGoogleEvents((prev) => (prev.length === 0 && items.length === 0 ? prev : items));
+  }, []);
 
   const handlePrevMonth = () => {
     if (currentMonth === 0) {
@@ -123,7 +173,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     };
 
     // 1. Academy Institutional Events
-    events.forEach((e, idx) => {
+    const effectiveEvents = serverEvents && serverEvents.length > 0 ? serverEvents : events;
+    effectiveEvents.forEach((e, idx) => {
       append(e.date, {
         id: `acad-${idx}-${e.date}`,
         source: 'academy',
@@ -131,18 +182,19 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         title: e.title,
         subtitle: e.description,
         date: e.date,
-        location: 'Tattvasayam Future Academy, Jakkur, Bengaluru',
+        location: 'Tattvaswayam Future Academy, Jakkur, Bengaluru',
       });
     });
 
     // 2. Counseling Requests (Role-scoped)
+    const userRoles = currentUser?.roles || (currentUser ? [currentUser.role] : []);
     counseling.forEach((c) => {
       if (c.status === 'REJECTED') return;
       if (!currentUser) return;
       const canView =
-        currentUser.role === 'admin' ||
-        currentUser.role === 'principal' ||
+        userRoles.some((r) => r === 'admin' || r === 'principal' || r === 'support') ||
         currentUser.id.toLowerCase().includes(c.by) ||
+        (currentUser.userKey && currentUser.userKey === c.by) ||
         c.who === currentUser.id;
 
       if (canView) {
@@ -191,23 +243,36 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     }
 
     return map;
-  }, [events, counseling, currentUser, googleEvents, showGoogleEvents, activeCategoryFilter]);
+  }, [events, serverEvents, counseling, currentUser, googleEvents, showGoogleEvents, activeCategoryFilter]);
 
   const getItemsForDate = (dateStr: string) => dateItemsMap.get(dateStr) || [];
   const selectedItems = selectedDate ? getItemsForDate(selectedDate) : [];
 
-  const handleCreateEvent = (e: React.FormEvent) => {
+  const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle.trim() || !onAddEvent) return;
-    onAddEvent({
-      date: newDate,
-      title: newTitle.trim(),
-      type: newType,
-      description: newDesc.trim() || undefined,
-    });
-    setNewTitle('');
-    setNewDesc('');
-    setShowAddForm(false);
+    if (!newTitle.trim()) return;
+    try {
+      const created = await AuthService.createCalendarEvent({
+        date: newDate,
+        title: newTitle.trim(),
+        type: newType,
+        description: newDesc.trim() || undefined,
+      });
+      setServerEvents((prev) => [...(prev || events), created.event]);
+      if (onAddEvent) {
+        onAddEvent({
+          date: newDate,
+          title: newTitle.trim(),
+          type: newType,
+          description: newDesc.trim() || undefined,
+        });
+      }
+      setNewTitle('');
+      setNewDesc('');
+      setShowAddForm(false);
+    } catch (err: any) {
+      triggerToast(err?.message || 'Unable to publish calendar event.');
+    }
   };
 
   // .ICS Export Handlers
@@ -215,9 +280,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     const icsString = generateIcsContent({
       events,
       counseling,
-      calendarName: 'Tattvasayam Future Academy - Full Academic Schedule 2026',
+      calendarName: 'Tattvaswayam Future Academy - Full Academic Schedule 2026',
     });
-    downloadIcsFile(icsString, 'tattvasayam-academic-schedule-2026.ics');
+    downloadIcsFile(icsString, 'tattvaswayam-academic-schedule-2026.ics');
     triggerToast('Downloaded complete academic calendar in .ics format.');
     setShowExportMenu(false);
   };
@@ -233,9 +298,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       events,
       counseling,
       categoryFilter: category,
-      calendarName: `Tattvasayam Future Academy - ${labelMap[category]} 2026`,
+      calendarName: `Tattvaswayam Future Academy - ${labelMap[category]} 2026`,
     });
-    downloadIcsFile(icsString, `tattvasayam-${category}-schedule.ics`);
+    downloadIcsFile(icsString, `tattvaswayam-${category}-schedule.ics`);
     triggerToast(`Exported ${labelMap[category]} .ics file successfully!`);
     setShowExportMenu(false);
   };
@@ -248,11 +313,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       counseling,
       startDate: startIso,
       endDate: endIso,
-      calendarName: `Tattvasayam Schedule - ${MONTH_NAMES[currentMonth]} ${currentYear}`,
+      calendarName: `Tattvaswayam Schedule - ${MONTH_NAMES[currentMonth]} ${currentYear}`,
     });
     downloadIcsFile(
       icsString,
-      `tattvasayam-schedule-${MONTH_NAMES[currentMonth].toLowerCase()}-${currentYear}.ics`
+      `tattvaswayam-schedule-${MONTH_NAMES[currentMonth].toLowerCase()}-${currentYear}.ics`
     );
     triggerToast(`Exported schedule for ${MONTH_NAMES[currentMonth]} ${currentYear}.`);
     setShowExportMenu(false);
@@ -270,14 +335,50 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     triggerToast(`Exported "${item.title}" to .ics.`);
   };
 
+  if (!currentUser) {
+    return (
+      <AccessDeniedView
+        title="Sign In Required for School Calendar"
+        message="The academic & counseling calendar is protected and available only after signing in with a registered school account."
+        statusCode={401}
+        onNavigateHome={onNavigateHome || (() => {})}
+        onNavigateLogin={onNavigateToPortal}
+        showLoginAction
+      />
+    );
+  }
+
+  if (loadingAccess) {
+    return (
+      <div className="p-8 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 text-center space-y-2">
+        <div className="w-6 h-6 border-2 border-[#B45309] border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-xs font-medium text-stone-500 dark:text-stone-400">
+          Loading authorized school calendar…
+        </p>
+      </div>
+    );
+  }
+
+  if (accessError) {
+    return (
+      <AccessDeniedView
+        title="Calendar Access Denied"
+        message={accessError.message}
+        statusCode={accessError.status}
+        onNavigateHome={onNavigateHome || (() => {})}
+        onNavigateLogin={onNavigateToPortal}
+      />
+    );
+  }
+
   return (
     <div className="space-y-5">
       {/* Google Calendar Sync Card */}
       <GoogleCalendarSync
-        academyEvents={events}
-        onGoogleEventsUpdated={(items) => setGoogleEvents(items)}
+        academyEvents={serverEvents || events}
+        onGoogleEventsUpdated={handleGoogleEventsUpdated}
         showGoogleEvents={showGoogleEvents}
-        onToggleShowGoogleEvents={(show) => setShowGoogleEvents(show)}
+        onToggleShowGoogleEvents={setShowGoogleEvents}
         onToast={triggerToast}
       />
 
@@ -360,8 +461,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             )}
           </div>
 
-          {/* Admin Publish Event */}
-          {currentUser?.role === 'admin' && (
+          {/* Staff / Facilitator Publish Event */}
+          {canEditCalendar && (
             <button
               onClick={() => setShowAddForm(!showAddForm)}
               className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-xl transition shadow-xs"
@@ -482,7 +583,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               </label>
               <input
                 required
-                placeholder="e.g. Physics Quantum Lab Exhibition"
+                placeholder="e.g. Applied Physics Lab Exhibition"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 className="w-full p-2.5 bg-white dark:bg-stone-800 rounded-xl border border-orange-200 dark:border-stone-700 text-xs"

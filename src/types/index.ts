@@ -13,6 +13,7 @@ export type PassengerCategory = 'student' | 'teacher' | 'staff' | 'admin';
 
 export interface UserProfile {
   id: string;
+  userKey?: string;
   name: string;
   role: UserRole;
   title: string;
@@ -24,6 +25,12 @@ export interface UserProfile {
   hasOptedTransport?: boolean;
   assignedBusRoute?: string;
   assignedBusStop?: string;
+  roles?: UserRole[];
+  assignedClasses?: string[];
+  childrenKeys?: string[];
+  linkedStudentKey?: string;
+  authProvider?: 'google' | 'institutional';
+  isRegistered?: boolean;
 }
 
 export interface NoticeItem {
@@ -96,7 +103,7 @@ export interface BusTelemetry {
   headingDeg: number;
   fuelPercent: number;
   engineStatus: 'RUNNING' | 'IDLE' | 'OFF';
-  gpsSignal: 'STRONG_5G' | 'FAIR' | 'WEAK';
+  gpsSignal: 'STRONG_5G' | 'FAIR' | 'WEAK' | 'MASKED_OFF_DUTY' | 'PAUSED_GEOFENCE';
   satelliteCount: number;
   doorStatus: 'CLOSED' | 'OPEN';
   acStatus: 'ON' | 'OFF';
@@ -105,6 +112,7 @@ export interface BusTelemetry {
   currentLat: number;
   currentLng: number;
   cabinTempC?: number;
+  isMasked?: boolean;
 }
 
 export interface MlEtaStopPrediction {
@@ -187,6 +195,10 @@ export interface BusRouteInfo {
   delayMinutes?: number;
   isLocationSharingActive?: boolean;
   locationSharingStartedAt?: string;
+  dutyStatus?: 'ON_DUTY' | 'OFF_DUTY';
+  geofenceStatus?: 'INSIDE_CORRIDOR' | 'AT_JAKKUR_DEPOT' | 'OUTSIDE_ROUTE_MASKED';
+  geofenceDistanceMeters?: number;
+  isSimulatedOffRoute?: boolean;
   activeRouteVariant?: 'primary_corridor' | 'traffic_bypass_detour';
   mlPrediction?: MlEtaPredictionSummary;
 }
@@ -525,3 +537,73 @@ export interface ErrorStats {
   unresolved: number;
   cascadingSuppressed: number; // Count of secondary symptoms folded
 }
+
+// ================= RBAC & ACCESS CONTROL TYPES ================= //
+
+export type ProtectedFeature =
+  | 'bus_tracker'
+  | 'homework'
+  | 'homework_manage'
+  | 'calendar'
+  | 'reports'
+  | 'admin_users'
+  | 'otp_directory';
+
+export type AuthSessionState = 'UNAUTHENTICATED' | 'UNREGISTERED' | 'REGISTERED';
+
+export interface RegisteredUserRecord {
+  userKey: string;
+  id: string;
+  name: string;
+  email: string;
+  aliases?: string[];
+  roles: UserRole[];
+  primaryRole: UserRole;
+  title: string;
+  active: boolean;
+  assignedClasses?: string[];
+  childrenKeys?: string[];
+  linkedStudentKey?: string;
+  assignedBusRoute?: string;
+  rolesVersion: number;
+  phone?: string;
+}
+
+export interface SessionStatusResponse {
+  state: AuthSessionState;
+  authenticated: boolean;
+  registered: boolean;
+  email?: string;
+  name?: string;
+  authProvider?: 'google' | 'institutional';
+  user: UserProfile | null;
+  roles: UserRole[];
+  allowedFeatures: ProtectedFeature[];
+  rolesVersion?: number;
+  expiresAt?: number;
+  message?: string;
+  isDemoSession?: boolean;
+}
+
+export interface PublicAnnouncement {
+  id: string;
+  title: string;
+  category: string;
+  date: string;
+  content: string;
+  author: string;
+}
+
+export interface PublicSchoolInfo {
+  name: string;
+  shortName: string;
+  address: string;
+  phone: string;
+  email: string;
+  website: string;
+  hours: string;
+  curriculum: string;
+  stages: string[];
+  announcements: PublicAnnouncement[];
+}
+

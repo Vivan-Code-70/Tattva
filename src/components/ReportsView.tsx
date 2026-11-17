@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Award,
   Download,
@@ -20,14 +20,17 @@ import {
 } from 'lucide-react';
 import { SUBJECTS, USER_PROFILES, StorageService, getStudentOptedSubjects } from '../services/storageService';
 import { AiService } from '../services/aiService';
-import { UserProfile, AttendanceRecord } from '../types';
+import { AuthService, ApiAccessError } from '../services/authService';
+import { UserProfile, AttendanceRecord, SubjectName } from '../types';
 import { DailyAttendanceTrendChart } from './DailyAttendanceTrendChart';
 import { exportDailyAttendanceTrendCSV } from '../utils/attendanceExport';
 import { GoogleWorkspaceIntegrationModal } from './portal/GoogleWorkspaceIntegrationModal';
+import { AccessDeniedView } from './AccessDeniedView';
 
 interface ReportsViewProps {
   currentUser: UserProfile | null;
   onNavigateToPortal?: () => void;
+  onNavigateHome?: () => void;
   attendanceRecords?: AttendanceRecord[];
 }
 
@@ -38,15 +41,78 @@ interface DownloadStatusDetails {
   rows: number;
 }
 
+interface ScopedReportRecord {
+  studentKey: string;
+  studentId: string;
+  name: string;
+  grade: string;
+  optedSubjects: string[];
+  scores: number[];
+  attendancePercent: number;
+  presentDays: number;
+  totalDays: number;
+}
+
 export const ReportsView: React.FC<ReportsViewProps> = ({
   currentUser,
   onNavigateToPortal,
+  onNavigateHome,
   attendanceRecords = [],
 }) => {
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatusDetails | null>(null);
   const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
   const [workspaceModalMode, setWorkspaceModalMode] = useState<'sheets' | 'gmail'>('sheets');
   const [actionToast, setActionToast] = useState<string | null>(null);
+
+  const [selectedStudent, setSelectedStudent] = useState<string>('vivan');
+  const [aiRemark, setAiRemark] = useState<string>('');
+  const [isDrafting, setIsDrafting] = useState<boolean>(false);
+  const [showPrintModal, setShowPrintModal] = useState<boolean>(false);
+  const [viewSection, setViewSection] = useState<'all' | 'attendance' | 'academics'>('all');
+
+  const [scopedReports, setScopedReports] = useState<ScopedReportRecord[]>([]);
+  const [assignedClasses, setAssignedClasses] = useState<string[]>([]);
+  const [loadingReports, setLoadingReports] = useState<boolean>(true);
+  const [accessError, setAccessError] = useState<{ status: number; message: string } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    if (!currentUser) {
+      setLoadingReports(false);
+      return;
+    }
+
+    setLoadingReports(true);
+    setAccessError(null);
+
+    AuthService.fetchScopedReports()
+      .then((res) => {
+        if (!active) return;
+        const rows = res.reports || [];
+        setScopedReports(rows);
+        setAssignedClasses(res.assignedClasses || []);
+        if (rows.length > 0) {
+          setSelectedStudent((prev) =>
+            rows.some((r) => r.studentKey === prev) ? prev : rows[0].studentKey
+          );
+        }
+      })
+      .catch((err: unknown) => {
+        if (!active) return;
+        if (err instanceof ApiAccessError) {
+          setAccessError({ status: err.status, message: err.message });
+        } else {
+          setAccessError({ status: 403, message: 'Access denied for reports.' });
+        }
+      })
+      .finally(() => {
+        if (active) setLoadingReports(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [currentUser?.id, currentUser?.role, currentUser?.roles?.join(',')]);
 
   const showToast = (msg: string) => {
     setActionToast(msg);
@@ -67,186 +133,44 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     triggerDownloadStatus(fname);
   };
 
-  // If not logged in, render the Campus Attendance Trend Chart and confidential transcript sign-in banner
   if (!currentUser) {
     return (
-      <div className="space-y-6 overflow-x-hidden w-full">
-        {/* Top Header Card */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 sm:p-5 rounded-2xl bg-white dark:bg-stone-900 border border-orange-200 dark:border-amber-950 shadow-xs">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg sm:text-xl font-extrabold text-stone-900 dark:text-stone-100 flex items-center gap-2 font-display">
-                <TrendingUp className="w-5 h-5 text-orange-600 shrink-0" />
-                <span>Campus Attendance Analytics & Daily Trends</span>
-              </h2>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-                Institutional Public Overview
-              </span>
-            </div>
-            <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
-              Tattvasayam Future Academy • Daily verified RFID turnstile turnout across academic cohorts
-            </p>
-          </div>
+      <AccessDeniedView
+        title="Sign In Required for Progress Reports"
+        message="Progress reports and attendance records are protected and only visible to registered students, parents, facilitators, and school staff."
+        statusCode={401}
+        onNavigateHome={onNavigateHome || (() => {})}
+        onNavigateLogin={onNavigateToPortal}
+        showLoginAction
+      />
+    );
+  }
 
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => {
-                const fname = exportDailyAttendanceTrendCSV(attendanceRecords, null, 'current');
-                triggerDownloadStatus(fname);
-              }}
-              className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white dark:bg-stone-800 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-stone-700 hover:bg-orange-50 dark:hover:bg-stone-700 font-bold text-xs rounded-xl shadow-xs transition"
-              title="Download daily attendance trend data as formatted CSV"
-            >
-              <Download className="w-3.5 h-3.5 text-orange-600 shrink-0" />
-              <span>Export CSV</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setWorkspaceModalMode('sheets');
-                setIsWorkspaceModalOpen(true);
-              }}
-              className="flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 hover:bg-emerald-100 font-bold text-xs rounded-xl shadow-xs transition"
-              title="Export to Google Sheets"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <span>Google Sheets</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setWorkspaceModalMode('gmail');
-                setIsWorkspaceModalOpen(true);
-              }}
-              className="flex items-center justify-center gap-1.5 px-3 py-2 bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-stone-700 hover:bg-orange-100 font-bold text-xs rounded-xl shadow-xs transition"
-              title="Send report via Gmail"
-            >
-              <Mail className="w-3.5 h-3.5 text-orange-600 shrink-0" />
-              <span>Gmail</span>
-            </button>
-
-            <button
-              onClick={onNavigateToPortal}
-              className="flex items-center justify-center gap-1.5 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl shadow-xs transition"
-            >
-              <span>Sign In to Access Transcripts</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Daily Attendance Trend Chart using Recharts with Summary Table */}
-        <DailyAttendanceTrendChart
-          attendanceRecords={attendanceRecords}
-          onExportCSV={triggerDownloadStatus}
-          onOpenWorkspace={(m) => {
-            setWorkspaceModalMode(m);
-            setIsWorkspaceModalOpen(true);
-          }}
-        />
-
-        {/* Confidential Scholastic Transcript Notice */}
-        <div className="p-6 rounded-2xl bg-white dark:bg-stone-900 border border-orange-200 dark:border-amber-950 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-start gap-3 text-left">
-            <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0">
-              <Lock className="w-5 h-5" />
-            </div>
-            <div>
-              <h4 className="text-sm font-extrabold text-stone-900 dark:text-stone-100">
-                Individual Student Transcripts & Official Report Cards
-              </h4>
-              <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 max-w-xl">
-                13-discipline mastery assessments, AI educator remarks, and downloadable transcripts are restricted to authenticated students, parents, faculty, and administrators.
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={onNavigateToPortal}
-            className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 shrink-0"
-          >
-            <span>Sign In via Portal</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        {/* Download Status Toast Notification */}
-        {downloadStatus && (
-          <div className="fixed bottom-6 right-6 z-50 max-w-md w-[92vw] sm:w-[420px] p-4 rounded-2xl bg-stone-900 text-white shadow-2xl border border-stone-700 space-y-2.5 animate-bounce-short">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <span className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-                  <CheckCircle2 className="w-5 h-5" />
-                </span>
-                <div>
-                  <h4 className="font-extrabold text-xs text-white uppercase tracking-wider">
-                    Download Status: Successfully Saved
-                  </h4>
-                  <span className="text-[10px] text-stone-400 font-mono">
-                    {downloadStatus.timestamp} • File ready on local storage
-                  </span>
-                </div>
-              </div>
-              <button
-                onClick={() => setDownloadStatus(null)}
-                className="text-stone-400 hover:text-white p-1 rounded-lg hover:bg-stone-800 transition"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <p className="text-xs text-stone-300 leading-relaxed">
-              The daily attendance trend data has been confirmed and saved to your device:
-              <code className="block mt-1 font-mono text-[11px] text-orange-400 bg-stone-800 p-1.5 rounded-lg border border-stone-700 truncate">
-                {downloadStatus.filename}
-              </code>
-            </p>
-
-            <div className="pt-2 border-t border-stone-800 flex items-center justify-between text-xs">
-              <span className="text-[10px] text-stone-400 font-mono">
-                {downloadStatus.size} • {downloadStatus.rows} weekdays
-              </span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => {
-                    setWorkspaceModalMode('sheets');
-                    setIsWorkspaceModalOpen(true);
-                  }}
-                  className="px-2.5 py-1 rounded-lg bg-emerald-950 text-emerald-300 border border-emerald-800 text-[11px] font-bold hover:bg-emerald-900 transition flex items-center gap-1"
-                >
-                  <FileSpreadsheet className="w-3 h-3" />
-                  <span>Google Sheets</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setWorkspaceModalMode('gmail');
-                    setIsWorkspaceModalOpen(true);
-                  }}
-                  className="px-2.5 py-1 rounded-lg bg-orange-950 text-orange-300 border border-orange-800 text-[11px] font-bold hover:bg-orange-900 transition flex items-center gap-1"
-                >
-                  <Mail className="w-3 h-3" />
-                  <span>Gmail</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Google Workspace Modal */}
-        <GoogleWorkspaceIntegrationModal
-          isOpen={isWorkspaceModalOpen}
-          onClose={() => setIsWorkspaceModalOpen(false)}
-          mode={workspaceModalMode}
-          attendanceRecords={attendanceRecords}
-          currentUser={currentUser}
-          onToast={showToast}
-        />
+  if (loadingReports) {
+    return (
+      <div className="p-8 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 text-center space-y-2">
+        <div className="w-6 h-6 border-2 border-[#B45309] border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-xs font-medium text-stone-500 dark:text-stone-400">
+          Verifying permissions and loading authorized progress reports…
+        </p>
       </div>
     );
   }
 
-  // If logged in as gate security or support coordinator, allow attendance analytics but restrict scholastic reports
-  if (currentUser.role === 'security' || currentUser.role === 'support') {
+  if (accessError) {
+    return (
+      <AccessDeniedView
+        title="Progress Reports Access Denied"
+        message={accessError.message}
+        statusCode={accessError.status}
+        onNavigateHome={onNavigateHome || (() => {})}
+        onNavigateLogin={onNavigateToPortal}
+      />
+    );
+  }
+
+  // If security / non-scholastic role reached here (defense-in-depth)
+  if (currentUser.role === 'security') {
     return (
       <div className="space-y-6 overflow-x-hidden w-full">
         {/* Security / Support Header Card with Export CSV button */}
@@ -255,7 +179,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             <div className="flex items-center gap-2">
               <h2 className="text-lg sm:text-xl font-extrabold text-stone-900 dark:text-stone-100 flex items-center gap-2 font-display">
                 <TrendingUp className="w-5 h-5 text-orange-600 shrink-0" />
-                <span>Turnstile Attendance & Gate Telemetry</span>
+                <span>Turnstile Attendance & Gate Logs</span>
               </h2>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-orange-100 dark:bg-stone-800 text-orange-800 dark:text-orange-400">
                 Staff Verified • {currentUser.role.toUpperCase()}
@@ -400,28 +324,35 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     );
   }
 
-  // Determine default student to display
-  const initialStudent =
-    currentUser.role === 'student'
-      ? currentUser.id.toLowerCase().includes('vivan')
-        ? 'vivan'
-        : 'krishvika'
-      : currentUser.role === 'parent'
-      ? currentUser.child || 'vivan'
-      : 'vivan';
+  const activeReport =
+    scopedReports.find((r) => r.studentKey === selectedStudent) || scopedReports[0];
 
-  const [selectedStudent, setSelectedStudent] = useState<string>(initialStudent);
-  const [aiRemark, setAiRemark] = useState<string>('');
-  const [isDrafting, setIsDrafting] = useState<boolean>(false);
-  const [showPrintModal, setShowPrintModal] = useState<boolean>(false);
-  const [viewSection, setViewSection] = useState<'all' | 'attendance' | 'academics'>('all');
+  if (!activeReport) {
+    return (
+      <AccessDeniedView
+        title="No Assigned Student Reports"
+        message="Your account does not currently have any linked students or assigned classes for academic reports. Please contact the school office."
+        statusCode={403}
+        onNavigateHome={onNavigateHome || (() => {})}
+        onNavigateLogin={onNavigateToPortal}
+      />
+    );
+  }
 
-  const student = USER_PROFILES[selectedStudent] || USER_PROFILES.vivan;
-  const optedSubjects = student.optedSubjects || getStudentOptedSubjects(selectedStudent);
-  const scores = student.scores || [90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90];
+  const baseProfile = USER_PROFILES[activeReport.studentKey];
+  const student = {
+    id: activeReport.studentId,
+    name: activeReport.name,
+    title: activeReport.grade,
+    optedSubjects: activeReport.optedSubjects,
+    scores: activeReport.scores,
+    role: 'student' as const,
+  };
+  const optedSubjects = activeReport.optedSubjects || baseProfile?.optedSubjects || getStudentOptedSubjects(activeReport.studentKey);
+  const scores = activeReport.scores || baseProfile?.scores || [90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90];
 
   const optedItems = optedSubjects.map((s) => {
-    const idx = SUBJECTS.indexOf(s);
+    const idx = SUBJECTS.indexOf(s as SubjectName);
     return { subject: s, score: scores[idx] ?? 90 };
   });
 
@@ -455,7 +386,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     ];
     const csvContent = rows.map((r) => r.join(',')).join('\n');
     StorageService.downloadText(
-      `tattvasayam-report-${student.name.toLowerCase()}-${student.title.replace(/\s+/g, '-')}.csv`,
+      `tattvaswayam-report-${student.name.toLowerCase()}-${student.title.replace(/\s+/g, '-')}.csv`,
       csvContent,
       'text/csv;charset=utf-8;'
     );
@@ -473,7 +404,15 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const topSubject = ranked[0] || { subject: 'Mathematics', score: 99 };
   const lowestSubject = ranked[ranked.length - 1] || { subject: 'English', score: 95 };
 
-  const canSwitchStudent = currentUser.role !== 'student' && currentUser.role !== 'parent';
+  const canSwitchStudent = scopedReports.length > 1;
+  const userRoles = currentUser.roles || [currentUser.role];
+  const scopeLabel = userRoles.some((r) => r === 'admin' || r === 'principal' || r === 'support')
+    ? 'Staff Oversight Scope'
+    : userRoles.includes('teacher') && assignedClasses.length > 0
+    ? `Facilitator Scope: ${assignedClasses.join(', ')}`
+    : userRoles.includes('parent')
+    ? 'Child Scope'
+    : 'Own Record';
 
   return (
     <div className="space-y-6 overflow-x-hidden w-full">
@@ -494,7 +433,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700">
+              {scopeLabel}
+            </span>
           {/* Section view switcher */}
           <div className="flex items-center bg-stone-100 dark:bg-stone-800 p-1 rounded-xl text-xs font-bold">
             <button
@@ -533,15 +475,19 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
           {canSwitchStudent && (
             <select
-              value={selectedStudent}
+              value={activeReport.studentKey}
               onChange={(e) => {
                 setSelectedStudent(e.target.value);
                 setAiRemark('');
               }}
+              aria-label="Select permitted student"
               className="text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-orange-200 dark:border-stone-700 bg-orange-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-orange-500"
             >
-              <option value="vivan">Vivan Sharma (Grade 10-A)</option>
-              <option value="krishvika">Krishvika Patel (Grade 8-B)</option>
+              {scopedReports.map((rep) => (
+                <option key={rep.studentKey} value={rep.studentKey}>
+                  {rep.name} ({rep.grade})
+                </option>
+              ))}
             </select>
           )}
 
@@ -604,7 +550,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4">
         <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-stone-900 border border-orange-200 dark:border-amber-950 shadow-xs">
           <span className="text-[10px] sm:text-[11px] font-bold uppercase text-stone-400 dark:text-stone-500 tracking-wider block truncate">
-            Neural Scholastic GPA
+            Cumulative Scholastic GPA
           </span>
           <div className="text-xl sm:text-2xl font-extrabold text-orange-600 dark:text-orange-400 mt-1 font-mono">
             {avg}%
@@ -805,18 +751,18 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-orange-50 p-1.5 border border-orange-200 shadow-sm mb-1">
                   <img
                     src="/assets/aistudio/Tattvaswayam_School_Logo_dd139741.png"
-                    alt="Tattvasayam Future Academy Seal"
+                    alt="Tattvaswayam Future Academy Seal"
                     className="w-full h-full object-contain"
                   />
                 </div>
                 <h1 className="text-2xl sm:text-3xl font-serif font-black uppercase tracking-wide text-stone-900">
-                  Tattvasayam Future Academy
+                  Tattvaswayam Open Learning &amp; Future Academy
                 </h1>
                 <p className="text-xs text-stone-600 font-medium">
-                  Centre of Integral Pedagogy & Emerging Sciences • Affiliated to CBSE / Cambridge Assessment
+                  NEP 2020 Open Learning Resource Centre • CBSE, Cambridge &amp; NIOS Assessment Pathways
                 </p>
                 <p className="text-[11px] text-stone-500">
-                  Jakkur Plantation Road, Yelahanka Sub-Division, Bengaluru, Karnataka 560064 • Tel: +91 80 2846 1900
+                  #2060, Sampigehalli, Jakkur, Bengaluru, Karnataka 560064 • Tel: +91-76250-03355 • info@tattvaswayam.com
                 </p>
                 <div className="inline-block mt-2 px-4 py-1 bg-orange-100 text-orange-900 rounded-full font-bold text-xs uppercase tracking-widest border border-orange-300">
                   Cumulative Scholastic Evaluation & Official Transcript • Term 1 (2026–27)
@@ -912,25 +858,25 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               <div className="pt-6 border-t-2 border-stone-200 grid grid-cols-3 gap-6 text-center text-xs">
                 <div>
                   <div className="h-10 border-b border-dashed border-stone-400 mb-1 flex items-end justify-center font-serif italic text-stone-600">
-                    Susmita Roy
+                    Sushmitha
                   </div>
-                  <span className="font-bold text-stone-900 block">Ms. Susmita Roy</span>
-                  <span className="text-[10px] text-stone-500">Class Facilitator</span>
+                  <span className="font-bold text-stone-900 block">Ms. Sushmitha</span>
+                  <span className="text-[10px] text-stone-500">Facilitator &amp; Mentor, Mathematical Studies</span>
                 </div>
 
                 <div className="flex flex-col items-center justify-center">
                   <div className="w-16 h-16 rounded-full border-2 border-dashed border-orange-600 flex items-center justify-center text-orange-700 text-[9px] font-bold uppercase text-center p-1 leading-tight">
-                    Official Institutional Seal • TFA
+                    Official Institutional Seal • TSOLRC
                   </div>
                   <span className="text-[10px] text-stone-400 mt-1">Registry Verified</span>
                 </div>
 
                 <div>
                   <div className="h-10 border-b border-dashed border-stone-400 mb-1 flex items-end justify-center font-serif italic text-stone-600">
-                    Dr. B. R. Shenoy
+                    Amrita
                   </div>
-                  <span className="font-bold text-stone-900 block">Dr. B. R. Shenoy</span>
-                  <span className="text-[10px] text-stone-500">Principal & Head of School</span>
+                  <span className="font-bold text-stone-900 block">Ms. Amrita</span>
+                  <span className="text-[10px] text-stone-500">Centre Head &amp; Chief Mentor</span>
                 </div>
               </div>
             </div>

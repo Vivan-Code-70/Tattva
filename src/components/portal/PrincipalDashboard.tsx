@@ -78,7 +78,7 @@ export const PrincipalDashboard: React.FC<PrincipalDashboardProps> = ({
       date: new Date().toISOString().split('T')[0],
       targetRoles: ['all'],
       priority: noticePriority,
-      author: 'Dr. B. R. Shenoy (Principal)',
+      author: 'Ms. Amrita (Centre Head & Chief Mentor)',
     });
 
     setNoticeTitle('');
@@ -162,11 +162,11 @@ export const PrincipalDashboard: React.FC<PrincipalDashboardProps> = ({
                 {user.name}
               </h2>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
-                Principal & Patron
+                Centre Head &amp; Chief Mentor
               </span>
             </div>
             <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">
-              Executive oversight for Tattvasayam Future Academy • Jakkur, Bengaluru
+              Leadership oversight for Tattvaswayam Open Learning &amp; Future Academy • #2060, Sampigehalli, Jakkur, Bengaluru
             </p>
           </div>
         </div>
@@ -207,7 +207,7 @@ export const PrincipalDashboard: React.FC<PrincipalDashboardProps> = ({
               className="px-3.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-300 font-semibold text-xs transition flex items-center gap-1.5"
             >
               <Compass className="w-3.5 h-3.5 text-orange-600" />
-              <span>Campus Hologram</span>
+              <span>Campus Map</span>
             </button>
           )}
         </div>
@@ -294,7 +294,7 @@ export const PrincipalDashboard: React.FC<PrincipalDashboardProps> = ({
             <div className="p-5 rounded-[16px] bg-white dark:bg-stone-900 border border-orange-100 dark:border-stone-800 shadow-xs flex flex-col justify-between">
               <div>
                 <span className="text-[11px] font-bold uppercase tracking-wider text-stone-400">
-                  Cohort Neural GPA Median
+                  Cohort Cumulative GPA Median
                 </span>
                 <div className="text-3xl font-extrabold text-orange-600 dark:text-orange-400 font-mono mt-1">
                   {averageGpa}
@@ -396,7 +396,7 @@ export const PrincipalDashboard: React.FC<PrincipalDashboardProps> = ({
                     Campus Audit & Access Stream
                   </h3>
                 </div>
-                <span className="text-xs text-stone-400 font-mono">Live telemetry</span>
+                <span className="text-xs text-stone-400 font-mono">Live campus log</span>
               </div>
 
               <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1 text-xs">
@@ -601,7 +601,7 @@ export const PrincipalDashboard: React.FC<PrincipalDashboardProps> = ({
               <div className="flex items-center gap-3">
                 <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
-                  <span>GPS Telemetry Active</span>
+                  <span>Live Bus GPS Active</span>
                 </span>
                 <a
                   href={`tel:${busRoute.driverPhone}`}
@@ -661,38 +661,38 @@ export const PrincipalDashboard: React.FC<PrincipalDashboardProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <div className="p-5 rounded-[16px] bg-white dark:bg-stone-900 border border-orange-100 dark:border-stone-800 shadow-xs space-y-3">
               <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-stone-800 flex items-center justify-center text-amber-700">
+                  <Building className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-sm text-stone-900 dark:text-stone-100 font-display">
+                    Founder &amp; Managing Director
+                  </h4>
+                  <span className="text-[11px] text-stone-500">Ms. Sandhya Gatti</span>
+                </div>
+              </div>
+              <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
+                Guiding Tattvaswayam&apos;s NEP 2020 Co-Creators of Knowledge philosophy, Out-of-Syllabus learning, and inclusive mentorship across all age stages.
+              </p>
+              <div className="text-[11px] font-semibold text-emerald-600">Status: Active on Campus (Leadership Suite)</div>
+            </div>
+
+            <div className="p-5 rounded-[16px] bg-white dark:bg-stone-900 border border-orange-100 dark:border-stone-800 shadow-xs space-y-3">
+              <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-stone-800 flex items-center justify-center text-orange-600">
                   <Users className="w-5 h-5" />
                 </div>
                 <div>
                   <h4 className="font-extrabold text-sm text-stone-900 dark:text-stone-100 font-display">
-                    Senior STEM Faculty
+                    Mathematical Studies Mentor
                   </h4>
-                  <span className="text-[11px] text-stone-500">Ms. Susmita • Physics & Math</span>
+                  <span className="text-[11px] text-stone-500">Ms. Sushmitha</span>
                 </div>
               </div>
               <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
-                100% on-time coursework publishing; high inquiry feedback rating on the AI Study Lab.
+                Leading conceptual mathematics, inquiry projects, and zero-rote analytical problem solving across Novitiate, Mezzo &amp; Adroit learners.
               </p>
-              <div className="text-[11px] font-semibold text-emerald-600">Status: Active on Campus (Lab 101)</div>
-            </div>
-
-            <div className="p-5 rounded-[16px] bg-white dark:bg-stone-900 border border-orange-100 dark:border-stone-800 shadow-xs space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-stone-800 flex items-center justify-center text-amber-600">
-                  <Building className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-extrabold text-sm text-stone-900 dark:text-stone-100 font-display">
-                    Director of Academics
-                  </h4>
-                  <span className="text-[11px] text-stone-500">Ms. Sandhya • Philosophy & Ethics</span>
-                </div>
-              </div>
-              <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
-                Supervising CBSE & Cambridge assessment rubrics and counseling approvals.
-              </p>
-              <div className="text-[11px] font-semibold text-emerald-600">Status: Active on Campus (Room 101)</div>
+              <div className="text-[11px] font-semibold text-emerald-600">Status: Active on Campus (Studio 101)</div>
             </div>
 
             <div className="p-5 rounded-[16px] bg-white dark:bg-stone-900 border border-orange-100 dark:border-stone-800 shadow-xs space-y-3">
@@ -702,15 +702,69 @@ export const PrincipalDashboard: React.FC<PrincipalDashboardProps> = ({
                 </div>
                 <div>
                   <h4 className="font-extrabold text-sm text-stone-900 dark:text-stone-100 font-display">
-                    Schedule Coordinator
+                    Chief Administrator
                   </h4>
-                  <span className="text-[11px] text-stone-500">Ms. Bharthi • Timetable Lead</span>
+                  <span className="text-[11px] text-stone-500">Ms. Sangeetha</span>
                 </div>
               </div>
               <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
-                12-Hour daily period synchronizations across 4 cohorts with zero room clashes.
+                Overseeing parent admissions visits, daily operations, transport approvals, and cross-cohort schedules at Sampigehalli Campus.
               </p>
-              <div className="text-[11px] font-semibold text-emerald-600">Status: Active on Campus (Room 104)</div>
+              <div className="text-[11px] font-semibold text-emerald-600">Status: Active on Campus (Admin Office)</div>
+            </div>
+
+            <div className="p-5 rounded-[16px] bg-white dark:bg-stone-900 border border-orange-100 dark:border-stone-800 shadow-xs space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-stone-800 flex items-center justify-center text-rose-600">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-sm text-stone-900 dark:text-stone-100 font-display">
+                    Language &amp; Literature Mentor
+                  </h4>
+                  <span className="text-[11px] text-stone-500">Ms. Sandhya Padmanabhan</span>
+                </div>
+              </div>
+              <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
+                Curating TURN (The Unusual Reading Nook) literacy circles, Swayam Vichar Manch dialogues, and expressive communication.
+              </p>
+              <div className="text-[11px] font-semibold text-emerald-600">Status: Active on Campus (TURN Reading Nook)</div>
+            </div>
+
+            <div className="p-5 rounded-[16px] bg-white dark:bg-stone-900 border border-orange-100 dark:border-stone-800 shadow-xs space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-stone-800 flex items-center justify-center text-emerald-700">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-sm text-stone-900 dark:text-stone-100 font-display">
+                    Early Childhood Learning Mentor
+                  </h4>
+                  <span className="text-[11px] text-stone-500">Ms. Shravani • Inizio Stage</span>
+                </div>
+              </div>
+              <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
+                Facilitating story-based early numeracy, movement, and Wander &amp; Wonder sensory inquiry for ages 3.8–5.8 years.
+              </p>
+              <div className="text-[11px] font-semibold text-emerald-600">Status: Active on Campus (Inizio Courtyard)</div>
+            </div>
+
+            <div className="p-5 rounded-[16px] bg-white dark:bg-stone-900 border border-orange-100 dark:border-stone-800 shadow-xs space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-stone-800 flex items-center justify-center text-purple-600">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-sm text-stone-900 dark:text-stone-100 font-display">
+                    Facilitator of Inclusive Learning
+                  </h4>
+                  <span className="text-[11px] text-stone-500">Ms. Divya Dogra</span>
+                </div>
+              </div>
+              <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
+                Partnering with families and mentors so every neurodiverse and self-paced learner thrives with tailored care.
+              </p>
+              <div className="text-[11px] font-semibold text-emerald-600">Status: Active on Campus (Resource Studio)</div>
             </div>
           </div>
         </div>
@@ -828,7 +882,7 @@ export const PrincipalDashboard: React.FC<PrincipalDashboardProps> = ({
                   Trigger Campus Emergency Lockdown?
                 </h3>
                 <p className="text-xs text-stone-500 dark:text-stone-400">
-                  Principal Executive Authority • CODE RED PROTOCOL
+                  Centre Head Executive Authority • CODE RED PROTOCOL
                 </p>
               </div>
             </div>

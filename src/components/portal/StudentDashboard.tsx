@@ -21,7 +21,20 @@ import {
   ShieldCheck,
   GraduationCap,
   Bus,
+  TrendingUp,
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Cell,
+} from 'recharts';
 import {
   UserProfile,
   UserRole,
@@ -47,6 +60,10 @@ import { DigitalIdBadgeModal } from './DigitalIdBadgeModal';
 import { StudentOverview } from './StudentOverview';
 import { DailyAcademicGoals } from './DailyAcademicGoals';
 import { TransportOptInPanel } from './TransportOptInPanel';
+import {
+  exportStudentDashboardPdf,
+  StudentSubjectCompletionRow,
+} from '../../utils/dashboardPdfExport';
 
 interface StudentDashboardProps {
   user: UserProfile;
@@ -117,6 +134,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   const [activeTab, setActiveTab] = useState<'overview' | 'coursework' | 'timetable' | 'services' | 'notices' | 'transport' | 'chat'>('overview');
   const [activeDayIndex, setActiveDayIndex] = useState(0);
   const [isIdBadgeOpen, setIsIdBadgeOpen] = useState(false);
+  const [taskChartMode, setTaskChartMode] = useState<'bar' | 'line'>('bar');
+  const [pdfExportNotice, setPdfExportNotice] = useState<string | null>(null);
 
   // Counseling form state
   const [counselor, setCounselor] = useState('amrita');
@@ -188,15 +207,87 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
       room: `Room ${101 + (idx % 8)}`,
     }));
 
+  // Compute completion percentage of assigned tasks across all 13 subjects
+  const SHORT_SUBJECT_LABELS: Record<string, string> = {
+    Mathematics: 'Math',
+    Physics: 'Physics',
+    Biology: 'Biology',
+    Chemistry: 'Chem',
+    Philosophy: 'Phil',
+    English: 'English',
+    'Business Studies': 'Business',
+    Music: 'Music',
+    Dance: 'Dance',
+    Sports: 'Sports',
+    French: 'French',
+    Hindi: 'Hindi',
+    Kannada: 'Kannada',
+  };
+
+  const subjectCompletionRows: StudentSubjectCompletionRow[] = React.useMemo(() => {
+    return SUBJECTS.map((subj, idx) => {
+      const subTasks = assignments.filter(
+        (a) => a.subject.toLowerCase() === subj.toLowerCase()
+      );
+      const total = subTasks.length;
+      const completed = subTasks.filter((a) => Boolean(a.done[studentKey])).length;
+      const completionPct = total > 0 ? Math.round((completed / total) * 100) : 0;
+      return {
+        subject: subj,
+        shortName: SHORT_SUBJECT_LABELS[subj] || subj,
+        completed,
+        total,
+        completionPct,
+        score: scores[idx] ?? 90,
+        isOpted: optedSubjects.includes(subj),
+      };
+    });
+  }, [assignments, studentKey, scores, optedSubjects]);
+
+  const totalAssignedTasks = assignments.length;
+  const totalCompletedTasks = assignments.filter((a) => Boolean(a.done[studentKey])).length;
+  const overallTaskCompletionPct =
+    totalAssignedTasks > 0 ? Math.round((totalCompletedTasks / totalAssignedTasks) * 100) : 0;
+
+  const handleExportStudentPdf = () => {
+    const fileName = exportStudentDashboardPdf({
+      user,
+      studentKey,
+      neuralGpa,
+      optedSubjects,
+      scores,
+      assignments,
+      subjectCompletionRows,
+      todayDayName,
+      todayPeriods,
+      attendanceRecords: myAttendance,
+      leaveRequests: myLeaveRequests,
+    });
+    setPdfExportNotice(`Exported dashboard report as ${fileName}`);
+    setTimeout(() => setPdfExportNotice(null), 4000);
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-10">
+      {pdfExportNotice && (
+        <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center justify-between">
+          <span>{pdfExportNotice}</span>
+          <button
+            onClick={() => setPdfExportNotice(null)}
+            className="text-emerald-700 dark:text-emerald-300 hover:underline font-bold"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Top Profile & KPI Ribbon */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Neural GPA Card */}
         <div className="p-5 rounded-[16px] bg-white dark:bg-stone-900 border border-orange-200/80 dark:border-stone-800 shadow-xs flex flex-col justify-between">
           <div>
             <span className="text-[11px] font-bold uppercase text-stone-400 dark:text-stone-500 tracking-wider">
-              Neural GPA & Mastery
+              Cumulative GPA &amp; Mastery
             </span>
             <div className="text-3xl font-extrabold text-orange-600 dark:text-orange-400 mt-1 font-mono">
               {neuralGpa}%
@@ -249,6 +340,14 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
             >
               <Radio className="w-3.5 h-3.5 text-orange-600 animate-pulse" />
               <span>Tap NFC</span>
+            </button>
+            <button
+              onClick={handleExportStudentPdf}
+              title="Export current dashboard data as PDF"
+              className="py-1.5 px-3 bg-stone-900/80 hover:bg-stone-900 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>PDF</span>
             </button>
           </div>
         </div>
@@ -477,6 +576,219 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                 onNavigateToReports={onNavigateToReports}
                 onNavigateToCoursework={() => setActiveTab('coursework')}
               />
+            </div>
+
+            {/* 13-Subject Task Completion Progress Chart (Recharts) */}
+            <div className="lg:col-span-2 p-5 sm:p-6 rounded-[20px] bg-white dark:bg-stone-900 border border-orange-200/80 dark:border-stone-800 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 dark:border-stone-800 pb-3.5">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-orange-600" />
+                    <h3 className="font-extrabold text-base text-stone-900 dark:text-stone-100 font-display">
+                      13-Subject Assigned Task Completion Progress
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 tabular-nums">
+                      {overallTaskCompletionPct}% Overall ({totalCompletedTasks}/{totalAssignedTasks})
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-500">
+                    Completion percentage of assigned coursework across all 13 Tattvaswayam subjects (updates live as tasks are marked done).
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <div className="flex items-center p-1 rounded-xl bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setTaskChartMode('bar')}
+                      className={`px-3 py-1 rounded-lg transition ${
+                        taskChartMode === 'bar'
+                          ? 'bg-orange-600 text-white shadow-2xs'
+                          : 'text-stone-600 dark:text-stone-300 hover:text-stone-900'
+                      }`}
+                    >
+                      Progress Bars
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTaskChartMode('line')}
+                      className={`px-3 py-1 rounded-lg transition flex items-center gap-1 ${
+                        taskChartMode === 'line'
+                          ? 'bg-orange-600 text-white shadow-2xs'
+                          : 'text-stone-600 dark:text-stone-300 hover:text-stone-900'
+                      }`}
+                    >
+                      <TrendingUp className="w-3 h-3" />
+                      <span>Line Chart</span>
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleExportStudentPdf}
+                    className="px-3 py-1.5 rounded-xl bg-stone-900 dark:bg-stone-800 hover:bg-stone-800 dark:hover:bg-stone-700 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Export PDF</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="w-full h-64 pt-1 min-w-0">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                  {taskChartMode === 'bar' ? (
+                    <BarChart
+                      data={subjectCompletionRows}
+                      margin={{ top: 10, right: 12, left: -18, bottom: 8 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} opacity={0.5} />
+                      <XAxis
+                        dataKey="shortName"
+                        tick={{ fontSize: 10, fill: '#78716c', fontWeight: 600 }}
+                        tickLine={false}
+                        interval={0}
+                      />
+                      <YAxis
+                        domain={[0, 100]}
+                        ticks={[0, 25, 50, 75, 100]}
+                        tickFormatter={(v) => `${v}%`}
+                        tick={{ fontSize: 10, fill: '#78716c' }}
+                        tickLine={false}
+                      />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (!active || !payload || !payload.length) return null;
+                          const row: StudentSubjectCompletionRow = payload[0].payload;
+                          return (
+                            <div className="bg-white/95 dark:bg-stone-900/95 backdrop-blur-md p-3 rounded-xl border border-stone-200 dark:border-stone-700 shadow-xl text-xs space-y-1 min-w-[180px]">
+                              <div className="flex items-center justify-between gap-3 border-b border-stone-100 dark:border-stone-800 pb-1">
+                                <span className="font-extrabold text-stone-900 dark:text-stone-100">
+                                  {row.subject}
+                                </span>
+                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-orange-50 dark:bg-stone-800 text-orange-700 dark:text-orange-300 font-bold">
+                                  {row.isOpted ? 'Opted' : 'Open'}
+                                </span>
+                              </div>
+                              <div className="flex justify-between pt-0.5">
+                                <span className="text-stone-500">Task Completion:</span>
+                                <span className="font-mono font-extrabold text-orange-600 tabular-nums">
+                                  {row.completionPct}%
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-stone-500">Tasks Completed:</span>
+                                <span className="font-mono font-bold text-stone-800 dark:text-stone-200 tabular-nums">
+                                  {row.completed} / {row.total}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-stone-500">Subject Score:</span>
+                                <span className="font-mono font-bold text-emerald-600 tabular-nums">
+                                  {row.score}%
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        }}
+                      />
+                      <Bar
+                        dataKey="completionPct"
+                        name="Task Completion %"
+                        radius={[6, 6, 0, 0]}
+                        maxBarSize={32}
+                        background={{ fill: 'rgba(120, 113, 108, 0.12)', radius: 6 }}
+                      >
+                        {subjectCompletionRows.map((entry) => (
+                          <Cell
+                            key={entry.subject}
+                            fill={
+                              entry.completionPct === 100
+                                ? '#10b981'
+                                : entry.completionPct >= 50
+                                ? '#ea580c'
+                                : entry.completionPct > 0
+                                ? '#f59e0b'
+                                : '#a8a29e'
+                            }
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  ) : (
+                    <LineChart
+                      data={subjectCompletionRows}
+                      margin={{ top: 10, right: 12, left: -18, bottom: 8 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} opacity={0.5} />
+                      <XAxis
+                        dataKey="shortName"
+                        tick={{ fontSize: 10, fill: '#78716c', fontWeight: 600 }}
+                        tickLine={false}
+                        interval={0}
+                      />
+                      <YAxis
+                        domain={[0, 100]}
+                        ticks={[0, 25, 50, 75, 100]}
+                        tickFormatter={(v) => `${v}%`}
+                        tick={{ fontSize: 10, fill: '#78716c' }}
+                        tickLine={false}
+                      />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (!active || !payload || !payload.length) return null;
+                          const row: StudentSubjectCompletionRow = payload[0].payload;
+                          return (
+                            <div className="bg-white/95 dark:bg-stone-900/95 backdrop-blur-md p-3 rounded-xl border border-stone-200 dark:border-stone-700 shadow-xl text-xs space-y-1 min-w-[180px]">
+                              <div className="font-extrabold text-stone-900 dark:text-stone-100 border-b border-stone-100 dark:border-stone-800 pb-1">
+                                {row.subject}
+                              </div>
+                              <div className="flex justify-between pt-0.5">
+                                <span className="text-stone-500">Task Completion:</span>
+                                <span className="font-mono font-extrabold text-orange-600 tabular-nums">
+                                  {row.completionPct}% ({row.completed}/{row.total})
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="completionPct"
+                        name="Task Completion %"
+                        stroke="#ea580c"
+                        strokeWidth={2.5}
+                        dot={{ r: 4, fill: '#ea580c', stroke: '#ffffff', strokeWidth: 1.5 }}
+                        activeDot={{ r: 6, fill: '#10b981', stroke: '#ffffff', strokeWidth: 2 }}
+                      />
+                    </LineChart>
+                  )}
+                </ResponsiveContainer>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-stone-100 dark:border-stone-800 text-[11px] text-stone-500">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
+                    <span>100% Complete</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-orange-600" />
+                    <span>50–99% In Progress</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-stone-400" />
+                    <span>0% Pending</span>
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('coursework')}
+                  className="font-bold text-orange-600 hover:text-orange-700"
+                >
+                  Update Tasks in Coursework &rarr;
+                </button>
+              </div>
             </div>
 
             {/* Daily Academic Goals with Circular Progress Bar */}
@@ -827,7 +1139,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                 Parent-Managed Permission Policy
               </span>
               <p className="text-[11px] leading-relaxed">
-                As per Tattvasayam Future Academy institutional governance, all official leave permissions and term fee installments are submitted exclusively by parent/guardian accounts.
+                As per Tattvaswayam Future Academy institutional governance, all official leave permissions and term fee installments are submitted exclusively by parent/guardian accounts.
               </p>
             </div>
 

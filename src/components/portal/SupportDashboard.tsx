@@ -547,7 +547,7 @@ export const SupportDashboard: React.FC<SupportDashboardProps> = ({
 
                       {t.reply && (
                         <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200">
-                          <span className="font-bold block mb-0.5">Response from Ms. Bharthi:</span>
+                          <span className="font-bold block mb-0.5">Response from Ms. Sangeetha (Chief Administrator):</span>
                           <p>{t.reply}</p>
                         </div>
                       )}
@@ -595,7 +595,7 @@ export const SupportDashboard: React.FC<SupportDashboardProps> = ({
           <TransportApprovalQueue
             transportRequests={transportRequests}
             onUpdateTransportRequestStatus={onUpdateTransportRequestStatus}
-            reviewerLabel="Coordinator Desk (Ms. Bharthi)"
+            reviewerLabel="Chief Administrator Desk (Ms. Sangeetha)"
           />
           <TransportOptInPanel
             user={user}

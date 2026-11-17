@@ -687,8 +687,8 @@ export const DailyAttendanceTrendChart: React.FC<DailyAttendanceTrendChartProps>
       </div>
 
       {/* Main Recharts Visualization Canvas */}
-      <div className="h-72 sm:h-80 w-full pt-1">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="h-72 sm:h-80 w-full pt-1 min-w-0">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           {chartType === 'area' ? (
             <AreaChart
               data={formattedChartData}
